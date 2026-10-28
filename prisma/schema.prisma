@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  name       String?
+  email      String    @unique
+  password   String
+  // "ADMIN" (dashboard) | "CUSTOMER" (área do cliente)
+  role       String    @default("CUSTOMER")
+  createdAt  DateTime  @default(now())
+  // Usuário desativado não entra (authorize e revalidação da sessão). Nulo = ativo.
+  disabledAt DateTime?
+  products   Product[]
+  posts      Post[]
+  orders     Order[]
+}
+
+// kind: "PRODUCT" | "POST"
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String
+  kind      String
+  createdAt DateTime  @default(now())
+  products  Product[]
+  posts     Post[]
+
+  @@unique([slug, kind])
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String
+  priceCents  Int
+  imageUrl    String?
+  stock       Int         @default(0)
+  published   Boolean     @default(false)
+  categoryId  String?
+  category    Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+model Post {
+  id         String    @id @default(cuid())
+  title      String
+  slug       String    @unique
+  excerpt    String?
+  content    String
+  coverUrl   String?
+  published  Boolean   @default(false)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// Tentativas de login/cadastro para rate limit (janela de 15 min). key = "email:<normalizado>" | "ip:<ip>" | "register-ip:<ip>".
+model AuthAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+// Assinantes da newsletter. E-mail normalizado (trim + lowercase) pela action.
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  locale    String?
+  createdAt DateTime @default(now())
+}
+
+// status: "PENDING" | "PAID" | "SHIPPED" | "DELIVERED" | "CANCELED"
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  status     String      @default("PENDING")
+  totalCents Int
+  createdAt  DateTime    @default(now())
+  items      OrderItem[]
+}
+
+// name/priceCents são cópias do momento da compra (histórico não muda se o produto mudar)
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name       String
+  priceCents Int
+  quantity   Int
+}
