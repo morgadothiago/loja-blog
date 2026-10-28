@@ -149,6 +149,19 @@ z.object({
 - **Chaves:** `ABACATEPAY_PUBLIC_KEY` entregue por `publicConfig` (props do servidor), `ABACATEPAY_API_KEY` só no adapter servidor.
 - **CSP:** se o projeto adotar CSP, liberar `script-src https://abacatepay.com` e o domínio do iframe (**não documentado** → descobrir no sandbox e registrar aqui antes de ativar CSP).
 
+### 6.3 Compatibilidade vinext / Workers
+Premissas, matriz e regras: **0007 §6.3**. Específico do cartão:
+| Recurso usado aqui | Portável? | Nota / fallback |
+|---|---|---|
+| Server Action `payWithCard` (Zod 4 puro) | ✅ | fallback: Route Handler `POST` sobre o mesmo `core/` |
+| `createCardCharge` no adapter via `fetch` | ✅ | **sem SDK do fornecedor**; sem `Buffer`; JSON por `JSON.stringify` |
+| `next/script` + `abacatepay.js` remoto (cliente) | ✅ (vinext: `next/script` com as 4 strategies) | roda no navegador, independe do servidor |
+| Registry servidor referenciando componente `"use client"` (`CardForm` como slot) | ⚠️ **não verificado no vinext** (RSC sobre Vite) | `vinext check` no passo 0 + teste de render; **fallback:** `page.tsx` importa o `CardForm` por um mapa cliente `cardForms[gatewayId]` em arquivo `"use client"` próprio, mantendo "uma linha por adapter" no `registry.ts` apenas para a parte servidor (perde um pouco do "um único lugar": decisão 18 da 0007) |
+| Rate limit anti card-testing | ✅ | Postgres (`lib/rate-limit.ts`), nunca `Map` em memória |
+| Dependência de `crypto`/`Buffer` | ✅ nenhuma | token só trafega como string opaca |
+| CPF/CNPJ (dígito verificador), máscara | ✅ | funções puras |
+**Passo 0 e CI:** herdados da 0007; `check:portability` cobre `src/components/checkout/**` e `adapters/**/card-form.tsx` (este pode usar `window.AbacatePay`, mas não imports Node).
+
 ## 7. Segurança e permissões
 | Operação | Anônimo | Cliente | Admin | Verificação |
 |---|---|---|---|---|
@@ -186,6 +199,7 @@ z.object({
 **Infra:** Vitest + jsdom já existem; Playwright/axe dependem da pergunta 1 da 0008. Fornecedor mockado (`fetch` e `window.AbacatePay`) — **nenhuma chamada de rede real** em testes automatizados.
 
 ## 9. Plano de implementação
+0. (Herdado) resultado de `npx vinext check` registrado em 0007 §6.3.7; verificar especificamente o padrão "registry servidor → componente cliente como slot" (6.3); se falhar, aplicar o fallback do mapa cliente.
 1. (Pré-condição) 0007 e 0008 `implemented`. No sandbox, validar: `tokenize` → `create` com `ctok_`; payload do webhook para cartão; se `APPROVED` dispara evento; juros no parcelamento; domínio do iframe. Atualizar 0007 §4.2 e esta spec se houver contradição.
 2. `CardFormProps`/`CardFormError` em `types.ts` + suíte de contrato do `CardForm` (teste 13) com adapter fake.
 3. `createCardCharge` no adapter AbacatePay (+ `installmentOptions`, mapeamento de erros) + testes de contrato do 0007.

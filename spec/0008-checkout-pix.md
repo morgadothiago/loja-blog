@@ -168,9 +168,24 @@ components/checkout/
   5. Em transação cria `Payment{PENDING, method:"PIX", amountCents: order.totalCents, gateway: selectGateway().id}` (índice parcial garante 1 ativo).
   6. `gateway.createPixCharge({ paymentId, amountCents, expiresInSeconds: capabilities.pixDefaultExpirySeconds, description })` — **sem `customer`**. Sucesso → grava `externalId`, `pixCopyPaste`, `pixQrBase64`, `expiresAt`; falha → `Payment` vai a `FAILED` (`failureCode`), erro traduzido.
   7. Retorna `{ paymentId, status, pix }` (nunca `externalId` bruto necessário ao cliente).
-- **`GET /api/payments/[paymentId]/status`** (`runtime nodejs`, `Cache-Control: no-store`): sessão obrigatória; `where:{ id, order:{ userId } }` → senão 404; se `PENDING`, chama `reconcilePayment` (throttle 15 s) antes de ler; retorna `{ status, orderStatus, expiresAt }`. Sem `pixCopyPaste`.
+- **`GET /api/payments/[paymentId]/status`** (sem `export const runtime`, `Cache-Control: no-store`; ver 6.3): sessão obrigatória; `where:{ id, order:{ userId } }` → senão 404; se `PENDING`, chama `reconcilePayment` (throttle 15 s) antes de ler; retorna `{ status, orderStatus, expiresAt }`. Sem `pixCopyPaste`.
 - **Cache/revalidação:** páginas dinâmicas (`cookies()` via `auth()`); `revalidatePath('/conta/pedidos')` e `/conta/pedidos/[id]` dentro de `applyCharge` ao pagar; `cacheComponents` segue desligado.
 - **Integração:** somente por `PaymentGateway` (0007); **nenhuma menção a AbacatePay** nesta spec de UI/ação.
+
+### 6.3 Compatibilidade vinext / Workers
+Premissas, matriz completa, regras e riscos: **0007 §6.3** (vale para esta spec). Específico do checkout/Pix:
+| Recurso usado aqui | Portável? | Nota / fallback |
+|---|---|---|
+| Server Action `startPixPayment` | ✅ (vinext lista Server Actions) | fallback: Route Handler `POST` chamando o mesmo `core/` |
+| Route Handler `GET /api/payments/[id]/status` (Web `Request`/`Response`, `await ctx.params`) | ✅ | sem `NextRequest` específico; sem `runtime` fixo |
+| `auth()` / `cookies()` assíncronos | ✅ | — |
+| `revalidatePath` em `applyCharge` | ✅ | isolado em `invalidateOrderViews()` (0007) |
+| `loading.tsx`/`error.tsx` (`retry()`)/`not-found` | ✅ | `retry()` **não verificado** no vinext: se faltar, `error.tsx` cai para `reset()` + `router.refresh()` |
+| Polling no cliente (`fetch`, `AbortController`, `visibilitychange`) | ✅ | tudo no navegador |
+| Clipboard (`navigator.clipboard`) | ✅ | navegador |
+| QR `<img src="data:image/png;base64,…">` (não `next/image`) | ✅ | evita a otimização de imagem 🟡 do vinext |
+| Estado: nenhum em memória do servidor; throttle e rate limit no banco | ✅ | 0007 §6.3.3 |
+**Passo 0 e CI:** os do 0007 (`npx vinext check`, guarda `check:portability`, que também varre `src/components/checkout/**` contra imports Node).
 
 ## 7. Segurança e permissões
 | Operação | Anônimo | Cliente | Admin | Verificação |
@@ -207,6 +222,7 @@ components/checkout/
 **Infra:** o projeto **não tem Playwright/axe**. Instalá-los (`@playwright/test`, `@axe-core/playwright`, browsers) é **item desta spec que depende de aprovação** (pergunta 1). Sem aprovação: casos 17–18 viram checklist manual com capturas em 360/768/1280 e **declaração explícita de que não houve verificação automatizada**; o jsdom cobre apenas o comportamento (11–16).
 
 ## 9. Plano de implementação
+0. (Herdado da 0007 §9 passo 0) conferir que o resultado de `npx vinext check` está registrado em 0007 §6.3.7 e que `check:portability` está no CI antes de codar; se o `error.tsx`/`retry()` ou Server Actions foram apontados, aplicar os fallbacks da 6.3.
 1. i18n: chaves novas (3 idiomas) + `ORDER_STATUS` por i18n + teste de paridade.
 2. `src/actions/payments.ts`: `startPixPayment` + testes 1–8.
 3. `GET /api/payments/[paymentId]/status` + testes 9–10.

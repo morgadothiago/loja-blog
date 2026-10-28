@@ -46,9 +46,8 @@ const SECTIONS: { id: string; list?: ListSectionId; href: string }[] = [
 ];
 const title = (l: (typeof LOCALES)[number], id: string) => dictionaries[l][MENU_ITEMS.find((i) => i.id === id)!.altKey];
 
-async function renderSection(id: string, list?: ListSectionId) {
-  const children = list ? await ContentGrid({ section: list }) : await AboutContent();
-  return render(await SectionPage({ id, children }));
+async function renderSection(id: string, list: ListSectionId) {
+  return render(await SectionPage({ id, children: await ContentGrid({ section: list }) }));
 }
 
 afterEach(() => {
@@ -57,9 +56,9 @@ afterEach(() => {
 });
 
 describe.each(LOCALES)("páginas do menu em %s", (locale) => {
-  it.each(SECTIONS)("$id: h1 com o letreiro e alt do idioma, subtítulo traduzido, sem chave crua", async ({ id, list }) => {
+  it.each(SECTIONS.filter((s) => s.list))("$id: h1 com o letreiro e alt do idioma, subtítulo traduzido, sem chave crua", async ({ id, list }) => {
     state.locale = locale;
-    const { container } = await renderSection(id, list);
+    const { container } = await renderSection(id, list!);
     const h1 = screen.getByRole("heading", { level: 1 });
     expect(within(h1).getByRole("img")).toHaveAttribute("alt", title(locale, id));
     expect(decodeURIComponent(within(h1).getByRole("img").getAttribute("src")!)).toContain(
@@ -72,7 +71,7 @@ describe.each(LOCALES)("páginas do menu em %s", (locale) => {
 
   it.each(SECTIONS.filter((s) => s.list))("$id: 3 cards em lista com título e metadado traduzidos", async ({ id, list }) => {
     state.locale = locale;
-    await renderSection(id, list);
+    await renderSection(id, list!);
     const items = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(items).toHaveLength(3);
     const first = CONTENT_SECTIONS[list!][0];
@@ -80,18 +79,27 @@ describe.each(LOCALES)("páginas do menu em %s", (locale) => {
     expect(items[0].textContent).toContain(dictionaries[locale][first.metaKey]);
   });
 
-  it("Sobre: parágrafos de exemplo traduzidos e imagem com altKey", async () => {
+  it("Sobre: h1 é o letreiro, seções na ordem, textos traduzidos, sem link de CV sem URL", async () => {
     state.locale = locale;
-    const { container } = await renderSection("about");
-    for (const key of ABOUT.paragraphKeys) expect(container.textContent).toContain(dictionaries[locale][key]);
-    expect(screen.getByTestId("slot")).toHaveAttribute("data-alt-key", "about.image.alt");
-    expect(container.querySelectorAll("p.max-w-\\[65ch\\]").length).toBe(ABOUT.paragraphKeys.length);
+    const { container } = render(await AboutContent());
+    expect(within(screen.getByRole("heading", { level: 1 })).getByRole("img")).toHaveAttribute("alt", dictionaries[locale]["about.hero.alt"]);
+    const h2 = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(h2).toEqual([dictionaries[locale]["about.artist.title"], dictionaries[locale]["about.gallery"]]);
+    for (const key of [...ABOUT.artistKeys, ...ABOUT.bioKeys, ABOUT.collages.captionKey]) {
+      expect(container.textContent).toContain(dictionaries[locale][key]);
+    }
+    for (const img of [ABOUT.portrait, ABOUT.photos, ABOUT.collages, ABOUT.whale]) {
+      expect(screen.getByRole("img", { name: dictionaries[locale][img.altKey] })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(container.querySelector("section.bg-salmon")).not.toBeNull();
+    expect(container.textContent).not.toMatch(/\babout\.[a-z0-9.]+\b/);
   });
 });
 
 describe("dados e i18n do conteúdo", () => {
   it("ids únicos e toda chave existe nas 3 línguas", () => {
-    const keys: MessageKey[] = [...ABOUT.paragraphKeys, "about.image.alt", "content.empty", "content.example"];
+    const keys: MessageKey[] = [...ABOUT.artistKeys, ...ABOUT.bioKeys, ABOUT.collages.captionKey, ABOUT.heroLogo.altKey, "about.artist.title", "about.gallery", "content.empty", "content.example"];
     const ids = new Set<string>();
     for (const entries of Object.values(CONTENT_SECTIONS)) {
       for (const e of entries) {
@@ -145,6 +153,8 @@ describe("rotas, nav e metadata", () => {
       expect(meta.title).toBe(title(l, id));
       expect(meta.description).toBe(dictionaries[l][`page.${id}.subtitle` as MessageKey]);
     }
+    // Sobre não usa SectionPage (abre direto na foto); as demais montam SectionPage com o próprio id.
+    if (id === "about") return;
     const el = (id === "books" ? BooksPage : modules[id as keyof typeof modules].default)() as { props: { id: string } };
     expect(el.props.id).toBe(id);
   });

@@ -27,6 +27,7 @@ approved_at:             # preenchido SOMENTE por humano
 - Rota de webhook genérica que delega ao adapter; reconciliação server-side como rede de segurança.
 - Testes de contrato que **qualquer** adapter novo deve passar.
 - Desenho extensível para seleção por país/idioma (futuro internacional) — **sem implementá-la**.
+- **Compatibilidade com vinext/Workers** (seção 6.3): camada de pagamentos só com APIs web (fetch, Web Crypto), sem estado em memória, com guarda de CI; o projeto segue em `next`.
 
 **Não-objetivos (decididos e justificados)**
 | Item | Decisão | Por quê |
@@ -60,6 +61,8 @@ approved_at:             # preenchido SOMENTE por humano
 | `01-app/02-guides/scripts.md` | `next/script` com `strategy`, `onLoad`/`onReady`. | Usado em 0009. |
 | `01-app/02-guides/content-security-policy.md` | CSP por nonce via proxy exige render dinâmico. | Projeto não tem CSP hoje; nota em 0009. |
 | `01-app/02-guides/authentication-with-cache-components.md` | Usa `import 'server-only'`. | Pacote `server-only` **não instalado**; ver alternativa na 6.2.1. |
+| https://github.com/cloudflare/vinext (README) | 2026-10-28 | Next 16.x; suporta Server Actions, route handlers, `proxy.ts`, `after`, `revalidatePath/Tag`, `cookies()/headers()` assíncronos, `next/script`; 🟡 `next/image`, `next/font`, segment config; `cacheComponents` incompleto; nativos não rodam; `vinext check` existe; **não menciona** Prisma nem `nodejs_compat`. | Sim: lacunas e experimental (ver 6.3) |
+| Docs Prisma para Workers | 2026-10-28 | Driver adapters (`adapter-pg` + `nodejs_compat`, `adapter-neon`), cliente por requisição; exemplos em Prisma 7. | Sim: o projeto usa cliente clássico 6.19 |
 | Next.js `AGENTS.md` do projeto | `middleware` → `proxy`; `cacheComponents` desligado. | Respeitado: nada de `"use cache"`. |
 
 ### 4.2 AbacatePay (https://docs.abacatepay.com, consultado em 2026-10-28)
@@ -308,10 +311,10 @@ Order:   PENDING → PAID | CANCELED | EXPIRED
 #### 6.2.4 Webhook genérico — `src/app/api/payments/webhook/[gateway]/route.ts`
 Rota **genérica** (`POST`). `[gateway]` seleciona o adapter dentre os **habilitados**; trocar o gateway ativo **não altera esta rota**. *Desvio consciente do pedido (“delega ao adapter ativo”):* resolver pelo parâmetro mantém **confirmando** cobranças pendentes do gateway anterior depois de uma troca e prepara o internacional (dois gateways ativos). A URL cadastrada no painel do fornecedor é por fornecedor de qualquer jeito. Decisão humana: pergunta 12.
 
-Algoritmo (`runtime = "nodejs"`; **sem** `after()` — o processamento é uma transação curta e a doc de reentrega é por 2xx em ≤ 30 s):
+Algoritmo (**sem** `export const runtime` — o código é agnóstico de runtime, ver 6.3; **sem** `after()` — o processamento é uma transação curta e a doc de reentrega é por 2xx em ≤ 30 s):
 1. `gateway = getGatewayById(params.gateway)`; desconhecido/não habilitado → **404** (sem corpo útil).
 2. `rawBody = await request.text()`; limite de tamanho (rejeitar > 64 KiB → 413).
-3. `event = await gateway.parseWebhook({ rawBody, headers, url })` — o adapter verifica **segredo (comparação em tempo constante) e HMAC com `timingSafeEqual` após checar tamanhos**, JSON válido e `devMode` coerente. Falha → **401** (AbacatePay não reentrega 4xx; atacante não aprende nada).
+3. `event = await gateway.parseWebhook({ rawBody, headers, url })` — o adapter verifica **segredo e HMAC-SHA256 com Web Crypto (`crypto.subtle`) e `safeEqual` próprio em tempo constante** (6.3.2; sem `node:crypto`), JSON válido e `devMode` coerente. Falha → **401** (AbacatePay não reentrega 4xx; atacante não aprende nada).
 4. Transação: `INSERT PaymentEvent{gateway,eventId}`; `P2002` → **200** `{ok:true,duplicate:true}`.
 5. Localiza o `Payment` (`ref.externalId` ou `ourPaymentId`). **Não encontrado** → **desfaz o insert do evento e responde 503** (reentrega: cobre a janela em que o webhook chega antes de gravarmos `externalId`). Após as 7 tentativas o fornecedor desiste; a reconciliação cobre.
 6. `snapshot = await gateway.getCharge(ref)` (valida status e valor); `applyCharge(payment, snapshot)` (6.2.5). Falha de rede no `getCharge` → 503 (reentrega).
@@ -327,7 +330,7 @@ Logs: `eventId`, `gateway`, `paymentId`, `outcome`; **nunca** `rawBody`, query s
   - `REFUNDED/DISPUTED`: atualiza o `Payment` e registra; efeito no pedido/estoque é decisão de negócio (pergunta 7), v1 só registra e loga alerta.
 - `releaseOrder(orderId, newStatus)` — `updateMany where status:"PENDING"` (condicional → exatamente uma liberação) + `product.update increment` para cada item com `productId` não nulo, na mesma transação.
 - `releaseExpiredOrders(now)` — varre `Order{status:PENDING, reservedUntil<now}` **sem Payment pendente não expirado**; chamada de forma **preguiçosa** (ao abrir o checkout, `/conta/pedidos` e antes de `createOrder` do mesmo usuário) e por rota opcional protegida `POST /api/payments/reconcile` (header `Authorization: Bearer ${CRON_SECRET}`) para agendador externo. **Cron é opcional na v1** (sem infraestrutura de agendamento garantida): a liberação preguiçosa já impede overselling no caminho comum; estoque de pedido abandonado fica preso até alguém tocar o sistema — aceito e documentado (pergunta 5).
-- `reconcilePayment(paymentId)` — `getCharge` + `applyCharge`, throttled por `lastSyncedAt` (≥ 15 s). Chamada pelo polling do Pix (0008) e pelo carregamento da página de pagamento. É a rede de segurança para webhook perdido e para o caso (2) “cartão `APPROVED` sem webhook imediato”. **Server-to-server; nunca disparada pelo navegador com dado do navegador.**
+- `reconcilePayment(paymentId)` — `getCharge` + `applyCharge`, throttled **no banco** (nunca em memória): o "claim" é `payment.updateMany({ where:{ id, status:"PENDING", OR:[{lastSyncedAt:null},{lastSyncedAt:{lt: now-15s}}] }, data:{ lastSyncedAt: now } })`; `count===0` → outro request já consultou, apenas lê o estado. Chamada pelo polling do Pix (0008) e pelo carregamento da página de pagamento. É a rede de segurança para webhook perdido e para o caso (2) “cartão `APPROVED` sem webhook imediato”. **Server-to-server; nunca disparada pelo navegador com dado do navegador.**
 - `startPayment`/`payWithCard` (contratos em 0008/0009) vivem em `src/actions/payments.ts`; **não contêm `if (gateway === …)`**: só chamam `selectGateway()`/`getGatewayById()` e a interface.
 - **Reserva:** `createOrder` passa a gravar `reservedUntil = now + 35 min` (Pix expira em 30 min = `pixDefaultExpirySeconds`; 5 min de margem reduzem pagamento tardio). Limite de **3 pedidos `PENDING` por usuário** (`CONFLICT/TOO_MANY_PENDING`) e rate limit nas chaves `pay-user:`/`pay-ip:` (reusa `lib/rate-limit.ts`: `recordAttempt` para cada criação de pedido e cada tentativa de cartão).
 
@@ -354,6 +357,68 @@ Novos `detailCode` entram em `src/lib/i18n.ts` (pt/en/es) conforme o padrão `er
 **Trocar** (adapter já existe): (1) preencher as variáveis `<ADAPTER>_*` do ambiente; (2) `PAYMENT_GATEWAY=<novo>`; (3) manter o antigo em `PAYMENT_GATEWAYS_ENABLED` até esgotar cobranças pendentes e cadastrar o webhook do novo (`https://<domínio>/api/payments/webhook/<novo>`); (4) deploy. **Nenhum arquivo de checkout, action, rota ou UI muda.**
 **Adicionar** adapter novo: (1) criar `adapters/<id>/` implementando `PaymentGateway` + `env.ts` + `card-form.tsx` (se oferecer cartão); (2) adicionar o `<id>` à união `GatewayId` e **uma linha** em `registry.ts`; (3) passar a suíte de contrato (`tests/payments/contract.ts`) com fixtures do fornecedor; (4) documentar variáveis em `.env.example`; (5) trocar conforme acima.
 
+### 6.3 Compatibilidade vinext / Workers (requisito do usuário)
+**Fontes:** README do vinext (https://github.com/cloudflare/vinext, lido em 2026-10-28) e docs da Prisma para Cloudflare Workers (https://www.prisma.io/docs/orm/prisma-client/deployment/edge/deploy-to-cloudflare). **Não** li o código do vinext nem rodei `vinext check` (passo 0).
+
+**Premissas**
+1. O projeto **continua em `next` 16.4.3**; nada pode quebrar lá. vinext é alvo de portabilidade, não de migração agora.
+2. vinext é **experimental**: o README diz "not yet a drop-in replacement" e que "some recently introduced or undocumented Next.js behavior may not yet be reproduced"; `cacheComponents` incompleto (já está **desligado** aqui); alvo declarado: Next 16.x.
+3. Em Workers não há memória compartilhada entre requisições/isolates, nem FS, nem módulos nativos (Node-API); `fail the build or the request` ao importar nativos (README).
+4. **Não confirmado:** se o runtime de destino terá `nodejs_compat` (o README do vinext não o menciona; a doc da Prisma o exige para `@prisma/adapter-pg`). Por isso a camada de pagamentos **não depende dele**.
+
+**6.3.1 Matriz Next-only vs portável (o que as specs 0007–0009 usam)**
+| Recurso | Onde é usado | Status no vinext (README) | Portável? | Fallback / decisão |
+|---|---|---|---|---|
+| `fetch` (chamadas ao gateway) | adapter | padrão web | ✅ | — |
+| Web Crypto `crypto.subtle`, `TextEncoder`, `atob/btoa`, `crypto.randomUUID` | HMAC do webhook, ids | padrão web | ✅ | substitui `node:crypto`/`Buffer`/`timingSafeEqual` (6.3.2) |
+| Route Handlers (`app/api/**/route.ts`) com `Request`/`Response` | webhook, status, reconcile | ✅ suportado | ✅ | usar só Web `Request`/`Response`; `NextRequest` só se necessário e sem recursos exclusivos |
+| `export const runtime` | — | 🟡 `runtime` suportado | ✅ | **não declarar** (evita `"nodejs"` fixo) |
+| Server Actions (`"use server"`) | `createOrder`, `startPixPayment`, `payWithCard` | ✅ suportado | ✅ (com risco de lacunas finas) | já é o padrão do projeto; cobrir com teste de integração; **fallback** se `vinext check` apontar problema: expor a mesma função por Route Handler `POST` (o `core/` não muda) |
+| `next/headers` (`cookies()`, `headers()`) assíncronos | via `auth()`/rate limit (`clientIp`) | ✅ | ✅ | já `await`ados |
+| `next/cache` `revalidatePath` | `applyCharge`, `createOrder` | ✅ suportado | ✅ | invalidação isolada em um helper `invalidateOrderViews()` (um ponto de troca) |
+| `after()` (`next/server`) | **não usado** (rejeitado na 6.2.4) | ✅ listado | — | — |
+| `next/navigation` (`redirect`, `notFound`) e `unstable_rethrow` (em `src/lib/action.ts`) | actions/páginas | `unstable_rethrow` **não listado** no README | ⚠️ a confirmar | `vinext check`; se faltar, trocar por checagem do `digest` do erro **em `defineAction`**, ponto único já existente |
+| Proxy (`src/proxy.ts`, `authorized`) | rotas `/conta`, `/carrinho` | ✅ `proxy.ts` | ✅ | webhook **fora** do matcher (já) |
+| `error.tsx`/`loading.tsx`/`not-found.tsx` | 0008 | ✅ | ✅ | — |
+| `next/script` (4 strategies) | 0009 | ✅ | ✅ | — |
+| `next/image` | não usado nestas specs (QR é `<img>` de data URL) | 🟡 sem otimização no build | ✅ | evitar depender de `sizes`/otimização no checkout |
+| `next/font`, route segment config (`dynamic`) | já no projeto | 🟡 | ✅ | sem `preferredRegion` (ignorado) |
+| `"use cache"`, `cacheComponents`, `cacheLife/Tag` | **não usados** | incompleto | — | continuam desligados |
+| Auth.js v5 beta (`auth()`, JWT) | login/ações | — | ⚠️ não avaliado nesta spec | `bcryptjs` (JS puro) ok; `PrismaAdapter` está em `package.json` (`@auth/prisma-adapter`) — confirmar uso real; fora do escopo, registrar no passo 0 |
+| `@azure/storage-blob` | só upload (`/api/upload`), **não** pagamentos | não avaliado | ⚠️ fora do escopo | não importar no módulo de pagamentos |
+
+**6.3.2 Regras da camada de pagamentos (`src/lib/payments/**`, `src/actions/payments.ts`, `src/app/api/payments/**`)**
+- Só `fetch`, `Request/Response/Headers`, `URL`, `TextEncoder/Decoder`, `crypto.subtle`, `crypto.getRandomValues/randomUUID`, `atob/btoa`. **Proibido:** `node:*`, `fs`, `net`, `child_process`, `crypto` (Node), `Buffer`, `process.on/exit`, SDKs de gateway que dependam de Node (por isso 5.1-C fica rejeitada também por compatibilidade), módulos nativos.
+- HMAC: `crypto.subtle.importKey('raw', keyBytes, {name:'HMAC', hash:'SHA-256'}, false, ['sign'])` → `sign` → base64 via `btoa` sobre bytes. `crypto.subtle.verify` com HMAC já é em tempo constante e **é o preferido** para a assinatura (comparar bytes decodificados da assinatura do header); para o `webhookSecret` (string) e o `CRON_SECRET`, usar `safeEqual(a, b)` próprio em `lib/payments/safe-equal.ts`: codifica ambos com `TextEncoder`, calcula HMAC-SHA256 de cada um com uma chave efêmera aleatória e compara os digests de tamanho fixo com XOR acumulado sem retorno antecipado (esconde também o tamanho). Testes 3, 3b.
+- Leitura de variáveis de ambiente **em um único módulo** (`lib/payments/env.ts` → `getEnv()`), pois em Workers os bindings chegam por mecanismo diferente de `process.env` (**não confirmado**). Ninguém mais lê `process.env` na camada de pagamentos; trocar o mecanismo = alterar esse arquivo. Leitura **por requisição** (nada lido/guardado no escopo do módulo).
+- `getGatewayById`/`selectGateway` constroem o adapter **por chamada** (ou memoização apenas de dados imutáveis e sem segredo); sem *singleton* com credenciais.
+
+**6.3.3 Estado compartilhado: nada em memória do processo**
+| Necessidade | Solução (portável) |
+|---|---|
+| Throttle do `reconcile` | `Payment.lastSyncedAt` com *claim* condicional no banco (6.2.5) |
+| Rate limit de cartão/pedido | `lib/rate-limit.ts` já é Postgres (`AuthAttempt`) — **reutilizado** (nenhum `Map` em memória) |
+| Idempotência do webhook | `PaymentEvent` único no banco |
+| Cache de status/Pix | **sem cache de módulo**; o polling lê o banco (e `Cache-Control: no-store`) |
+| Contagem/expiração | `Order.reservedUntil`/`Payment.expiresAt` no banco; relógio = `Date.now()` por requisição |
+| Agendamento | `POST /api/payments/reconcile` chamado por agendador externo (Cron Trigger do Workers, GitHub Actions, etc.); nenhum `setInterval`/`setTimeout` longo no servidor |
+| Trabalho após a resposta | não usado (`after()` evitado; transações curtas) |
+
+**6.3.4 Banco e Prisma em Workers — risco e decisão (sem trocar o banco agora)**
+- **Fato (código):** `src/lib/db.ts:1-7` usa `new PrismaClient()` clássico (`@prisma/client` 6.19.3, `provider = "prisma-client-js"`) como **singleton em `globalThis`**. O engine clássico é binário/nativo e **não roda em Workers**. A doc da Prisma para Workers (página lida) descreve **driver adapters** (`@prisma/adapter-pg` com `nodejs_compat`, `@prisma/adapter-neon` via HTTP, Prisma Postgres) e cria **o adapter e o `PrismaClient` dentro do `fetch` (por requisição)**; os exemplos da página usam `provider = "prisma-client"` com `output` e Prisma **7**, e a página **não** trata `driverAdapters`/`engineType` nem a versão em que se tornaram estáveis. **Não confirmado:** se Prisma **6.19** suporta o mesmo caminho de forma estável (o projeto está fixado em 6 por uma incompatibilidade anterior com CLI 8 rc + client 7 — premissa do projeto).
+- **Decisão desta spec:** a camada de pagamentos acessa o banco **só** por `import { db } from "@/lib/db"` (nunca instancia cliente próprio) e usa transações interativas curtas; `lib/db.ts` é o **único ponto** a mudar numa migração de runtime (ex.: fábrica `getDb()` por requisição + driver adapter). **Nenhuma mudança em `db.ts`, no schema de provedor ou no banco nesta série.**
+- **Alternativas** (para decisão futura, não implementadas): (A) manter Node (Next normal, ou vinext em Node/Nitro) — zero mudança, **recomendada agora**; (B) Workers + Postgres via **Hyperdrive** + `@prisma/adapter-pg` (exige `nodejs_compat`, upgrade de Prisma a validar, cliente por requisição); (C) Postgres serverless HTTP (Neon/Prisma Postgres) + `@prisma/adapter-neon`; (D) migrar para D1/SQLite (muda banco, SQL e migrations — **fora**, só se houver razão de negócio). Custo/risco: B e C mexem em `db.ts`, no gerador e no upgrade do Prisma (risco da incompatibilidade já vista); D reescreve migrations (índice parcial do 6.2.3 precisaria de equivalente).
+- **Restrições que o desenho já respeita:** transações curtas; sem `$queryRaw` exclusivo de Postgres além do índice parcial em SQL da migration (único ponto Postgres-específico, documentado); sem conexões longas nem `LISTEN/NOTIFY`; sem `prisma.$connect` global.
+- O `pg`/TCP em Workers depende de `nodejs_compat`; a doc da Prisma ainda cita limitação com `@cloudflare/next-on-pages` — irrelevante para vinext, mas mostra que cada alvo precisa de teste próprio.
+
+**6.3.5 Como a regra é imposta (CI)**
+Teste 3c (seção 8) + script `npm run check:portability` (somente leitura) chamado pelo CI: varre imports em `src/lib/payments/**`, `src/actions/payments.ts`, `src/app/api/payments/**`, `src/components/checkout/**` contra uma lista negra (`node:*`, `fs`, `path` (exceto tipos), `net`, `child_process`, `crypto`, `os`, `stream`, `Buffer`, `sharp`…), e acusa `let` de módulo mutável/`new Map()` em escopo de módulo nessa camada. Se `vinext check` (passo 0) revelar mais itens, estende-se a lista. **Sem dependência nova** (varredura por regex/`ts` já instalado); `eslint no-restricted-imports` por *override* de diretório é a alternativa mais simples ainda e é a recomendada — decisão 15.
+
+**6.3.6 Plug and play × vinext:** o registro e a config (6.2.1) não mudam; um adapter novo deve passar também a **suíte de contrato de portabilidade** (usa só APIs web; teste 3c cobre o adapter novo automaticamente por estar sob `adapters/**`).
+
+**6.3.7 Resultado do `vinext check` (a preencher no passo 0)**
+<saída resumida, data, versão do vinext e itens que afetam 0007–0009; "não executado" até a implementação>
+
 ## 7. Segurança e permissões
 | Operação | Anônimo | Cliente | Admin | Verificação (onde) |
 |---|---|---|---|---|
@@ -376,7 +441,9 @@ Infra: reutiliza Vitest + Postgres `*_test` (`tests/`). **Sem dependência nova.
 |---|---|---|---|
 | 1 | `canTransition` (tabela completa) | unit | só transições listadas |
 | 2 | `map.ts`: cada status do fornecedor → normalizado; `REDEEMED`/desconhecido → não transiciona | unit | conforme 6.2.1 |
-| 3 | HMAC: corpo válido; corpo adulterado; assinatura de tamanho diferente (não lança em `timingSafeEqual`); segredo errado/ausente | unit | só o válido passa; demais `WebhookAuthError` |
+| 3 | HMAC: corpo válido; corpo adulterado; assinatura de tamanho diferente (`safeEqual` não lança nem vaza tamanho); segredo errado/ausente; vetor de teste do HMAC idêntico ao de `node:crypto` (só no teste) | unit | só o válido passa; demais `WebhookAuthError` |
+| 3b | `safeEqual`: iguais/diferentes/prefixo/tamanhos distintos; sem early-return por byte | unit | resultado correto |
+| 3c | **Guarda de portabilidade (CI):** nenhum arquivo em `src/lib/payments/**` e `src/actions/payments.ts` e `src/app/api/payments/**` importa `node:*`/`fs`/`net`/`child_process`/`crypto`/`Buffer`, `process.on`, nem usa estado de módulo mutável (ver 6.3.5) | unit (varredura de imports/AST) | falha o build com o arquivo e a linha |
 | 4 | `installmentOptions`: R$ 25 → só 1x e 2x; R$ 100 → até 10x; total R$ 1.200 → 12x de R$ 100 | unit | parcela ≥ R$ 10; soma = total (resto na 1ª parcela) |
 | 5 | **Contrato (suíte reutilizável)** com fixtures do adapter: cria Pix (campos obrigatórios), cria cartão aprovado/recusado, `getCharge` normaliza, `parseWebhook` aceita/rejeita, `capabilities` coerente, nenhum texto de fornecedor em `GatewayError`, `UNKNOWN_OUTCOME` em timeout | contrato | passa para AbacatePay; **é o critério de aceite de qualquer adapter novo** |
 | 6 | Webhook: segredo inválido → 401, **sem tocar o banco** | integração | 401 + nenhuma linha |
@@ -400,6 +467,7 @@ Infra: reutiliza Vitest + Postgres `*_test` (`tests/`). **Sem dependência nova.
 Responsivo/a11y/e2e: N/A nesta spec (sem UI); ver 0008/0009 (e a decisão sobre instalar Playwright).
 
 ## 9. Plano de implementação
+0. **Compatibilidade vinext (antes de qualquer código):** rodar `npx vinext check` na raiz (somente leitura; não instala dependência no projeto — se o `npx` pedir para instalar algo no projeto, parar) e registrar a saída resumida na seção 6.3.7 desta spec; também registrar `next build` verde como linha de base. Se `vinext check` apontar bloqueio em recurso usado pelas specs 0007–0009, voltar a `needs-revision`. **O projeto continua rodando em `next`; vinext é só uma verificação de portabilidade.**
 1. **Sandbox primeiro (sem código de produto):** criar conta dev, chave dev, capturar **fixtures reais** de `transparent.completed` (Pix via `simulate-payment` e cartão), esclarecer não-confirmados 1–6 da seção 4.2; atualizar esta spec (se algo contradisse, voltar a `needs-revision`).
 2. `types.ts`, `errors.ts`, `core/state.ts` + testes 1–2.
 3. Migration `add_payments` (revisar SQL, incluir índice parcial) + testes 17–18.
@@ -418,6 +486,7 @@ Responsivo/a11y/e2e: N/A nesta spec (sem UI); ver 0008/0009 (e a decisão sobre 
 - Webhook perdido/atrasado → reconciliação (polling server-side e preguiçosa); sem cron o estoque de abandono pode ficar preso.
 - `PAID_WITHOUT_STOCK` e disputas exigem rotina manual de reembolso.
 - Rollback: migration é **aditiva** (tabelas e colunas anuláveis/com default); reverter o código deixa `Payment` órfão sem efeito. Desligar pagamentos: `PAYMENT_GATEWAY` vazio → actions devolvem `PAYMENTS_UNAVAILABLE` e o carrinho não finaliza.
+- **vinext/Workers (6.3):** vinext é experimental; o Prisma clássico (`db.ts`) **não roda em Workers** sem driver adapter e cliente por requisição; `nodejs_compat` e o mecanismo de env em Workers não confirmados; `unstable_rethrow` não listado no README. Mitigação: camada de pagamentos 100% web-API, estado só no banco, `db.ts` como ponto único de troca, `vinext check` no passo 0, Next normal continua sendo o alvo.
 - Dívidas aceitas: sem boleto, sem reembolso na UI, sem cron de produção, sem CPF persistido, sem retenção automática de `PaymentEvent`.
 
 ## 11. Perguntas em aberto
@@ -433,6 +502,14 @@ Responsivo/a11y/e2e: N/A nesta spec (sem UI); ver 0008/0009 (e a decisão sobre 
 - [ ] 10. Instalar o pacote `server-only` (dependência mínima) para blindar `registry`/adapters contra import no cliente, ou ficar com o teste de grep?
 - [ ] 11. QR do Pix: guardar `brCodeBase64` no banco (simples) ou re-renderizar o QR a partir do `brCode` (exigiria lib de QR no cliente — dependência nova)?
 - [ ] 12. Webhook por `/api/payments/webhook/[gateway]` (recomendado) ou rota única que sempre usa o adapter ativo (como pedido, mais simples, mas perde cobranças pendentes do gateway antigo numa troca)?
+
+- [ ] 13. **Alvo de runtime:** aceitar que a v1 roda em Node (Next normal) e que Workers/vinext é apenas "não bloquear" (código portável, sem migrar `db.ts`)? Ou há prazo para rodar em Workers (então abrir spec de Prisma/driver adapter, alternativas B/C da 6.3.4, com possível upgrade de Prisma)?
+- [ ] 14. Aprovar rodar `npx vinext check` no passo 0 e **parar** se apontar bloqueio? (não instala nada no projeto; baixa o pacote temporariamente via `npx`)
+- [ ] 15. Imposição da portabilidade: `eslint no-restricted-imports` por diretório (recomendado, sem dependência) + teste 3c, ou só o teste?
+- [ ] 16. Aceitar a **regra "sem `node:*`/`Buffer`/SDK de gateway Node"** na camada de pagamentos (inclui HMAC por Web Crypto e `safeEqual` próprio)? Custo: ~40 linhas próprias e testes.
+- [ ] 17. Agendador do `reconcile` (Cron Trigger/GitHub Actions) é aceitável, já que não pode haver `setInterval` em isolates?
+
+- [ ] 18. Se o padrão "registry no servidor referencia o `CardForm` cliente" não funcionar no vinext (a verificar no passo 0), aceitar o **fallback de um mapa cliente separado** (um segundo arquivo a editar ao adicionar adapter com cartão)?
 
 ## 12. Checklist da review humana
 - [ ] O problema e o escopo estão corretos
