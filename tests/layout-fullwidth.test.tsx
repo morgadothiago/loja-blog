@@ -21,11 +21,15 @@ import { RecentStories } from "@/components/home/recent-stories";
 
 vi.mock("@/components/home/newsletter-form", () => ({ NewsletterForm: () => <form /> }));
 
-describe("home sem container de largura máxima", () => {
-  it("token px-fluid = px-5 fixo (sem breakpoints) e nenhum --container-site", () => {
-    const css = readFileSync(path.resolve(import.meta.dirname, "../src/app/globals.css"), "utf8");
+const CSS = () => readFileSync(path.resolve(import.meta.dirname, "../src/app/globals.css"), "utf8");
+
+describe("largura máxima única: fundo full-bleed + conteúdo em .page-width", () => {
+  it("token --content-max (90rem) e utilitário page-width (px-5 fixo); sem content-fit nem container antigo", () => {
+    const css = CSS();
+    expect(css).toMatch(/--content-max:\s*90rem/);
+    expect(css).toMatch(/@utility page-width \{\s*@apply mx-auto w-full px-5;\s*max-width: var\(--content-max\);\s*\}/);
     expect(css).toMatch(/@utility px-fluid \{\s*@apply px-5;\s*\}/);
-    expect(css).not.toContain("--container-site");
+    expect(css).not.toMatch(/content-fit|--container-site|site-container|site-gutter/);
   });
 
   it.each([
@@ -35,42 +39,53 @@ describe("home sem container de largura máxima", () => {
     ["destaque", () => HomeFeature()],
     ["newsletter", () => NewsletterBand()],
     ["rodapé", () => HomeFooter()],
-  ])("%s: padding lateral px-fluid e sem max-w-*/mx-auto na raiz do conteúdo", async (_n, make) => {
+  ])("%s: conteúdo em .page-width e fundo/seção sem max-w próprio", async (_n, make) => {
     const { container } = render(await make());
     const root = container.firstElementChild as HTMLElement;
-    const withGutter = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))].filter((e) => e.classList.contains("px-fluid"));
-    expect(withGutter.length).toBeGreaterThan(0);
-    for (const el of [root, ...withGutter]) {
-      expect(el.className).not.toMatch(/\bmax-w-(?!\[)|\bmx-auto\b/);
-    }
-    expect(container.innerHTML).not.toMatch(/\bsite-container\b|\bsite-gutter\b|max-w-site/);
+    const all = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+    const pageWidth = all.filter((e) => e.classList.contains("page-width"));
+    expect(pageWidth.length).toBeGreaterThan(0);
+    // a raiz (fundo da seção) não define largura máxima nem frações; só page-width limita o conteúdo
+    expect(root.className).not.toMatch(/\bmax-w-(?!\[)|\bw-\d+\/\d+\b/);
+    expect(container.innerHTML).not.toMatch(/content-fit|site-container|site-gutter|max-w-site/);
   });
 
-  it("hero: carrossel proporcional (content-fit), aspect 11/6 constante, sem altura de janela", async () => {
+  it("hero: imagem única w-full dentro de page-width, aspect 11/6 constante, sem altura de janela; sizes coerente com o teto", async () => {
     const { container } = render(await HomeHero());
-    const wrapper = container.querySelector("[data-slot='carousel']") as HTMLElement;
-    expect(wrapper.className).toContain("content-fit");
-    expect(wrapper.className).not.toMatch(/max-w-|max-h-|svh/);
-    const slide = container.querySelector("[data-testid='carousel-overlay']")!.parentElement!;
-    expect(slide.className).toContain("aspect-[11/6]");
-    expect(slide.className).not.toMatch(/md:aspect|lg:aspect|xl:aspect|max-h-|svh/);
-    expect(container.querySelector("[data-testid='slot']")).toHaveAttribute("data-sizes", "(min-width: 1536px) 67vw, (min-width: 1024px) 80vw, 100vw");
+    const slot = container.querySelector("[data-testid='slot']") as HTMLElement;
+    expect(slot.closest(".page-width")).not.toBeNull();
+    expect(slot.className).toContain("aspect-[11/6]");
+    expect(slot.className).toContain("w-full");
+    expect(slot.className).not.toMatch(/max-w-|max-h-|svh|content-fit|md:aspect|lg:aspect/);
+    expect(slot).toHaveAttribute("data-sizes", "(min-width: 1440px) 1400px, 100vw");
   });
 
-  it("content-fit = 4/5 (lg) e 2/3 (2xl) da largura, sem px/rem/svh", () => {
-    const css = readFileSync(path.resolve(import.meta.dirname, "../src/app/globals.css"), "utf8");
-    expect(css).toMatch(/@utility content-fit \{\s*@apply mx-auto w-full lg:w-4\/5 2xl:w-2\/3;\s*\}/);
+  it("nenhuma medida em px nas classes de layout da home (rem, cqw, %, escala Tailwind)", () => {
+    // Exceções antigas e fora do escopo: app-header (h-[3.625rem]) não está nesta pasta. Sombras em rem.
+    const dir = path.resolve(import.meta.dirname, "../src/components/home");
+    for (const file of readdirSync(dir)) {
+      const src = readFileSync(path.resolve(dir, file), "utf8");
+      expect(src, file).not.toMatch(/\[-?[\d.]+px\]/);
+    }
   });
 
-  it("sem adaptação a Full HD nos componentes da home e das seções (alturas em svh, aspects ultra-largos, escala 2xl/xl, clamp)", () => {
+  it("proibições nos componentes da home e das seções (svh, max-h, clamp, fontes/larguras xl/2xl, frações, content-fit)", () => {
     const dirs = ["../src/components/home", "../src/components/sections"];
-    const forbidden = /svh|max-h-\[|aspect-\[(21\/9|16\/7|2\/1)\]|\b(2xl|xl):text-|\b2xl:(gap|w-|max-w)|clamp\(|min-width: 1792px/;
+    const forbidden = /svh|\bvh\b|max-h-\[|clamp\(|content-fit|\b(2xl|xl):(text-|w-|max-w|gap|py|pt|pb)|\blg:w-\d+\/\d+|aspect-\[(21\/9|16\/7)\]|min-width: 1792px/;
     for (const dir of dirs) {
       for (const file of readdirSync(path.resolve(import.meta.dirname, dir))) {
         const src = readFileSync(path.resolve(import.meta.dirname, dir, file), "utf8");
         expect(src, `${dir}/${file}`).not.toMatch(forbidden);
       }
     }
+  });
+
+  it("tipografia com teto: hero text-3xl, títulos de seção text-4xl, card text-lg, destaque text-3xl", () => {
+    const read = (f: string) => readFileSync(path.resolve(import.meta.dirname, f), "utf8");
+    expect(read("../src/components/home/home-hero.tsx")).toMatch(/lg:text-3xl/);
+    expect(read("../src/components/home/recent-stories.tsx")).toMatch(/text-3xl sm:text-4xl/);
+    expect(read("../src/components/home/story-card.tsx")).toMatch(/md:text-lg/);
+    expect(read("../src/components/home/home-feature.tsx")).toMatch(/md:text-3xl/);
   });
 
   it("destaque: medida de leitura limitada só no texto (ch)", async () => {
@@ -82,7 +97,7 @@ describe("home sem container de largura máxima", () => {
 describe("espaçamentos do modelo aprovado (base mobile, escala Tailwind)", () => {
   it("hero, banner, histórias, destaque, faixa amarela e rodapé", async () => {
     const hero = render(await HomeHero()).container;
-    expect(hero.querySelector(".px-fluid")!.className).toMatch(/\bpt-0\b.*\bpb-10\b/);
+    expect(hero.querySelector(".page-width")!.className).toMatch(/\bpt-0\b.*\bpb-10\b/);
     expect(hero.querySelector(".space-y-1")).not.toBeNull();
 
     const banner = render(await HomeBanner()).container;
@@ -90,16 +105,17 @@ describe("espaçamentos do modelo aprovado (base mobile, escala Tailwind)", () =
     expect(banner.querySelector("figcaption")!.className).toContain("mt-1");
 
     const stories = render(await RecentStories({ stories: [] })).container;
-    expect(stories.querySelector("section")!.className).toMatch(/\bpt-5\b.*\bpb-8\b/);
+    expect(stories.querySelector("section")!.className).toMatch(/\bpt-5\b.*\bpb-12\b/);
 
     const feature = render(await HomeFeature()).container;
     expect(feature.querySelector("section")!.className).toMatch(/\bpt-0\b.*\bpb-6\b/);
-    expect(feature.querySelector(".content-fit")!.className).toContain("gap-5");
+    expect(feature.querySelector(".page-width")!.className).toContain("gap-5");
 
     const band = render(await NewsletterBand()).container;
-    expect(band.querySelector(".px-fluid")!.className).toContain("py-8");
+    expect(band.querySelector(".page-width")!.className).toContain("py-3");
 
     const footer = render(await HomeFooter()).container;
     expect(footer.querySelector("footer")!.className).toContain("py-2");
+    expect(footer.querySelector("footer")!.className).toContain("page-width");
   });
 });

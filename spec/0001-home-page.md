@@ -491,6 +491,89 @@ Escala em telas largas: os espaçamentos verticais crescem em `sm/lg/2xl` (colun
 **Correção do carrinho "quadrado" ao lado do idioma (print-0008) — causa raiz no `buttonVariants`**
 O carrinho aparecia com cantos pequenos, sem borda escura, fundo diferente e mais baixo porque `<Link className={buttonVariants({ variant: "outline", className: "... rounded-full border-ink/30 bg-secondary h-11" })}>` usava a função `cva` **sem merge**: classes conflitantes (`rounded-lg`/`rounded-full`, `border-border`/`border-ink/30`, `bg-background`/`bg-secondary`, `h-8`/`h-11`) ficavam todas no HTML e a ordem do CSS decidia. O `Button` do idioma passava por `cn` (twMerge) e saía certo. Correção em `src/components/ui/button.tsx`: `buttonVariants` agora faz `cn(cva(...))` (merge real), o que também corrige os demais `<Link className={buttonVariants(...)}>` do projeto (CTA do menu, botões do hero/erros etc.: `rounded-full`/`h-11`/`px-*` agora valem). `CartLink variant="pill"` usa as mesmas classes do `LanguageSwitcher` e vira círculo `w-11 px-0` quando vazio, pílula com contador quando há itens. Teste compara as classes finais dos dois (sem `rounded-lg`, `h-8`, `border-border`, `bg-background`).
 
+**Remoção da adaptação a Full HD (pedido: "tira a limitação de largura e altura 1920x1080, está esticando o site") — SUBSTITUI a seção "Full HD (1920×1080) e layout sem container" e a matriz de breakpoints acima**
+Interpretação: o que esticava e recortava a home eram as regras específicas de 1920×1080 (alturas por janela, proporções ultra-largas e escalas `xl/2xl`). Foram removidas; o conteúdo passa a se comportar de forma proporcional: **aspect-ratio constante**, **largura em fração do conteúdo** e nenhum `px`/`rem`/`svh` forçando tamanho. Mantidos: sem container `max-w-*`, `px-5` fixo (`px-fluid`), header sticky, letreiros e painel do menu (alturas em `svh` só nos letreiros do painel, que cabem na janela).
+| Componente | Antes | Depois |
+|---|---|---|
+| Carrossel do hero | `w-full`; `aspect-[11/6] md:aspect-[2/1] lg:aspect-[16/7] xl:aspect-[21/9] max-h-[62svh]` | `content-fit`; `aspect-[11/6]` constante, sem `max-h`/`svh` |
+| `sizes` do hero/banner | `(min-width: 1792px) 1696px, 100vw` | `(min-width: 1536px) 67vw, (min-width: 1024px) 80vw, 100vw` |
+| Banner | `w-full`, `aspect-[3/1]` | `content-fit` (legenda junto), `aspect-[3/1]` |
+| Histórias | grade de largura total; `2xl:gap-12`, `2xl:mt-8`, `2xl:pt-12 2xl:pb-20`, `sizes` 560px | bloco `content-fit`; `lg:gap-8`; sem variações `2xl`; `sizes` em `vw` |
+| Título do card | `2xl:text-xl` | `text-lg` |
+| Destaque | ilustração `lg:w-[clamp(18rem,26vw,34rem)]`, texto `xl:text-4xl`, `2xl:pb-20` | bloco `content-fit`; ilustração `w-1/3 md:w-2/5` (fração); texto `text-xl md:text-3xl`; sem `2xl` |
+| Faixa amarela | arte `2xl:w-40`, form `2xl:max-w-2xl`, `2xl:py-20` | sem variações `2xl` |
+| Hero (espaçamento) | `lg:pb-14 2xl:pb-20` | `lg:pb-14` |
+| Páginas do menu | grade `2xl:gap-12`, título do card `2xl:text-xl`, largura total | conteúdo em `content-fit`, `lg:gap-8`, `text-lg` |
+`content-fit` (utilitário novo em `globals.css`): `mx-auto w-full lg:w-4/5 2xl:w-2/3`, ou seja, 100% até `md`, **4/5** do conteúdo em `lg` (≥1024px) e **2/3** em `2xl` (≥1536px), centralizado: é limite **proporcional** (fração da largura), não de container em px/rem. Motivo: com aspect-ratio constante e largura total, em 1880px o carrossel 11/6 teria ~1025px de altura e o banner 3:1 ~627px (maiores que a janela); com `content-fit` ficam ~683px (2/3 de 1880 ≈ 1253px) e ~418px.
+Matriz de breakpoints (conteúdo = viewport − 40px; carrossel 11/6; banner 3:1):
+| Viewport | Largura do bloco | Carrossel (altura) | Banner (altura) | Histórias |
+|---|---|---|---|---|
+| 360 | 320 (100%) | ~175 | ~107 | faixa rolável, cards 46% |
+| 768 | 728 (100%) | ~397 | ~243 | 3 colunas |
+| 1280 | ~992 (4/5 de 1240) | ~541 | ~331 | 3 colunas |
+| 1440 | ~1120 (4/5 de 1400) | ~611 | ~373 | 3 colunas |
+| 1920 | ~1253 (2/3 de 1880) | ~683 | ~418 | 3 colunas (~400 cada) |
+(aritmética das classes, não medições em navegador.) `object-position` por slot continua disponível; não há mais `object-cover` forçando altura de janela (o aspect-ratio define a caixa e o `cover` só preenche a própria caixa). Teste novo varre `src/components/home` e `src/components/sections` e falha se reaparecer `svh`, `max-h-[`, `aspect-[21/9|16/7|2/1]`, `2xl:/xl:text-`, `2xl:gap/w/max-w`, `clamp(` ou `min-width: 1792px`.
+
+**DECISÃO MAIS RECENTE — largura máxima única do conteúdo (1440px) com fundos de ponta a ponta (`spec/prompts/front-telas-grandes.md`); SUBSTITUI o `content-fit` (4/5 e 2/3) e REINTRODUZ um teto de largura, contrariando o pedido anterior de "sem container"**
+O usuário disse que o site ainda esticava em telas grandes e pediu a solução no front-end; a regra do prompt foi aplicada sem perguntas. Decisão: cada seção continua com **fundo de ponta a ponta** (hero bege, página clara, faixa amarela, header sticky), mas o **conteúdo** fica em `.page-width` (`globals.css`): `mx-auto w-full px-5` com `max-width: var(--content-max)` e `:root { --content-max: 1440px }`. É o **único** lugar onde a largura é definida; acima de 1440px o excedente vira margem do fundo. Padding lateral fixo `px-5` (20px) em todas as larguras. `content-fit`, `lg:w-4/5` e `2xl:w-2/3` foram removidos; `px-fluid` (= `px-5`) permanece só para o painel do menu.
+Antes → depois por componente:
+| Componente | Antes | Depois |
+|---|---|---|
+| Utilitário | `content-fit` (`lg:w-4/5 2xl:w-2/3`) | `page-width` (`max-width: var(--content-max)` = 1440px, `px-5`) |
+| Header | `px-fluid` (largura total) | fundo full-bleed, conteúdo em `page-width` |
+| Hero/carrossel | carrossel `content-fit`, `sizes` 67vw/80vw | conteúdo em `page-width`; carrossel `w-full`, `aspect-[11/6]` constante; `sizes="(min-width: 1440px) 1400px, 100vw"` |
+| Banner | `content-fit` | `page-width`, `aspect-[3/1]`; mesmo `sizes` |
+| Histórias | `content-fit`; `px-fluid` por filho | título/link/grade em `page-width`; no mobile a faixa rolável sangra (`-mx-5 px-5`), em `md+` volta ao `page-width`; `sizes` 450px acima de 1440px |
+| Destaque | `content-fit`; `sizes` 27vw | `page-width`; ilustração `w-1/3 md:w-2/5`; `sizes` 560px acima de 1440px |
+| Faixa amarela / rodapé | `px-fluid` | fundo full-bleed, conteúdo em `page-width` |
+| Páginas do menu | `content-fit` | faixa de título e conteúdo em `page-width`; `sizes` com teto (450px/560px) |
+Tipografia com teto (já aplicada e conferida por teste): hero `lg:text-3xl`, seções `text-3xl sm:text-4xl`, card `text-lg`, destaque `md:text-3xl`; sem `xl:`/`2xl:` de fonte. Proibido por teste (`tests/layout-fullwidth.test.tsx`, varre `src/components/home` e `src/components/sections`): `svh`/`vh`, `max-h-[`, `clamp(`, `content-fit`, `xl:`/`2xl:` com `text-|w-|max-w|gap|py|pt|pb`, frações `lg:w-n/m`, aspects `21/9|16/7|2/1`; o teste também exige `.page-width` no conteúdo de cada seção e a definição do token/utilitário.
+Matriz de breakpoints (conteúdo = min(viewport, 1440px) − 40px; carrossel 11/6; banner 3:1; aritmética das classes, não medida):
+| Viewport | Largura do conteúdo | Carrossel (altura) | Banner (altura) | Histórias |
+|---|---|---|---|---|
+| 360 | 320 | ~175 | ~107 | faixa rolável, cards 46% |
+| 768 | 728 | ~397 | ~243 | 3 colunas |
+| 1280 | 1240 | ~677 | ~413 | 3 colunas |
+| 1440 | 1400 | ~764 | ~467 | 3 colunas (~450) |
+| 1920 | 1400 (margens de ~260px de fundo de cada lado) | ~764 | ~467 | 3 colunas (~450) |
+| 2560 | 1400 (margens de ~580px) | ~764 | ~467 | 3 colunas (~450) |
+Ressalva: em 1440×790 (janela baixa) carrossel + header (≈822px) passam da altura visível; em 1440×900, 1920×1080 e 2560×1440 cabem. Por regra, não há `svh`/`max-h` para "caber": a proporção define a altura.
+**O que conferir em 1440, 1920 e 2560 (sem Playwright, não verificado):** conteúdo centralizado e nunca acima de 1440px, com o fundo (bege do hero, faixa amarela, header) indo de ponta a ponta; carrossel e banner sem esticar nem recortar; cards de histórias ~450px; texto do destaque sem linhas muito longas; sem rolagem horizontal; em 360 e 768 nada mudou perceptivelmente (inclusive a faixa de histórias sangrando até a borda).
+
+**Faixa da newsletter igual ao print (`spec/references/nova-secao.png`) — pedido posterior**
+Fundo `bg-mustard` de ponta a ponta, conteúdo em `.page-width`, faixa compacta; arte esquerda emoldurada; centro com título, **campo (pílula branca) + botão preto lado a lado em todas as larguras, inclusive 360px**, e ícones sociais abaixo; arte direita inclinada que sobe acima da faixa. Antes → depois:
+| Ponto | Antes | Depois |
+|---|---|---|
+| Altura da faixa | `py-8 md:py-12 lg:py-14` | `py-4 md:py-8 lg:py-10` (compacta) |
+| Campo + botão | empilhados <640px (`flex-col sm:flex-row`), rótulo visível, consentimento dentro da coluna do campo | sempre em linha (`flex items-center gap-2`, campo `flex-1 min-w-0`, botão `shrink-0`); rótulo só para leitores de tela (`sr-only`); erro (`role=alert`) e consentimento (`text-xs`) **abaixo** da linha |
+| Campo | borda `border-ink`, placeholder "voce@exemplo.com" | pílula branca (`bg-paper`) sem borda, `h-11`, placeholder pequeno ("Digite seu e-mail" / "Enter email address" / "Escribe tu correo") |
+| Botão | "Inscrever-se"/"Subscribe" | preto, texto claro, maiúsculas, `h-11 rounded-full px-5`: **ENVIAR / SIGN UP / ENVIAR** |
+| Ícones sociais | só apareciam com URL em `SITE.social` | **sempre visíveis** (pretos, sem círculo, `size-5` em alvo `size-11`); sem URL ficam decorativos (`aria-hidden`, sem tab stop, sem link morto); com URL viram links `target=_blank rel="noopener noreferrer"` |
+| Arte esquerda | `w-10 sm:w-20 md:w-28`, `aspect-[3/4]` | moldura `ring-1 ring-ink/40`, `aspect-[3/5]`, `w-9 sm:w-20 md:w-28`, slot `HOME_IMAGES.newsletterLeft` |
+| Arte direita | alinhada ao centro | `-mt-6 md:-mt-10 rotate-6 self-start`, `w-12 sm:w-20 md:w-28`, slot `HOME_IMAGES.newsletterRight`, placeholder original novo `side-b` |
+Como configurar: ícones sociais em `SITE.social` (`src/lib/site.ts`); artes em `HOME_IMAGES.newsletterLeft/Right` (arquivo em `public/images/home/`, `src` no slot). `ControlledInput` ganhou `hideError` e `describedBy` (erro fora do campo em layouts compactos; os ids entram no `aria-describedby`). RHF + yup + `ControlledInput`, honeypot e Zod no servidor mantidos; `aria-live`: sucesso `role=status`, erro `role=alert`. Rótulo/consentimento mantidos (a11y e LGPD), porém discretos (desvio assumido: o print não tem texto de consentimento). Em 360px a coluna central tem ~200px: campo ~120px com placeholder curto e botão ~75px (aritmética, não medido); se o placeholder não couber ele é cortado, o rótulo acessível continua. Testes: `tests/newsletter-band.test.tsx`; `tests/newsletter-form.test.tsx` e `tests/layout-fullwidth.test.tsx` atualizados.
+
+**Arte do banjo (material do cliente) = arte DIREITA da newsletter, não o destaque (correção do usuário) + botão de menu em imagem**
+- `Characters_2(1).png` (original `feature.png`: PNG 1597×2300 RGBA, fundo transparente, banjo com folha rosa/laranja, cogumelos laranja, perna e raios rosa; arte só na região central-inferior; lida e confirmada) corresponde à ilustração **direita da faixa da newsletter** (`spec/references/nova-secao.png`, `lugar-errado.png`). Antes eu a tinha ligado ao slot `feature`: **desfeito**; o destaque voltou ao placeholder SVG (`HOME_IMAGES.feature` sem `src`, `home.feature.alt` original) até o usuário enviar a arte certa (figura com flor amarela).
+- Aparada com `sharp` (script descartável, já apagado): margem transparente removida (1297×1459), redimensionada para **720×810 PNG com alfa (~310 KB)** em `public/images/home/newsletter-right.png`, ponta da folha preservada (conferido). O original foi movido para `design-assets/home-originals/Characters_2.png` (fora do build; nada de 867 KB servido).
+- `HOME_IMAGES.newsletterRight` = `{ src: "/images/home/newsletter-right.png", altKey: "newsletter.art.alt", fit: "contain" }`; alt nas 3 línguas ("Ilustração de um banjo com folha rosa e cogumelos laranja", EN, ES). No `NewsletterBand`: **sem `rotate-6`** (a arte já é inclinada), proporção `aspect-[8/9]` (= 720/810, sem distorcer), `w-16 sm:w-24 md:w-32`, centralizada na faixa e deslocada `-translate-y-1/3` (1/3 da própria altura) com `z-10`, o que faz o topo (folha) subir acima da faixa sobre a seção anterior. **Desvio do pedido:** "base alinhada ao fundo e altura ~1,6× a da faixa" não foi usada: com a arte quase quadrada (8/9) e a coluna central ocupando a maior parte da largura em 360px, 1,6× a faixa exigiria ~170px de largura e esmagaria o formulário; usei larguras que cabem e a elevação por deslocamento (topo acima da faixa, como no print). Ajustável em `className` do wrapper.
+- Candidatos registrados (NÃO usar sem o usuário indicar): na pasta `Downloads/About` do usuário há `Characters_1.png` (7433×1637, largo), `Foto_ppal.JPG` e `Photos2_png.png`.
+- Testes: `tests/home-images.test.tsx` (feature sem `src`; arquivo aparado existe, 720×810, razão 8/9; original não está em `public/`; alt nas 3 línguas; `<img>` `object-contain`) e `tests/newsletter-band.test.tsx` (sem `rotate-`, `-translate-y-1/3`, `z-10`, `aspect-[8/9]`).
+- **Botão de menu com `hamburger.png`: NÃO implementado.** `public/images/menu/hamburger.png` ainda não existe (verificado de novo). Pendente: copiar o arquivo; então trocar o `MenuIcon` do gatilho do `AppHeader` por `<Image src="/images/menu/hamburger.png" alt="" width={200} height={184} className="h-8 w-auto">` dentro do `Button` (mantendo `aria-label`, `aria-expanded`, alvo ≥44px, foco visível).
+
+**Faixa da newsletter — segunda passada de fidelidade (`spec/references/secao-igual.png`, ~1,3 px CSS por px de imagem)**
+| Ponto | Antes | Depois |
+|---|---|---|
+| Altura da faixa (mobile) | `py-4` | `py-3` (alvo ~130px CSS; ícones com `-my-1`) |
+| Título | `h2` global (manuscrita `font-heading`), `text-2xl sm:text-4xl` | **serifa normal** (`font-sans` = Newsreader do tema): `text-base font-normal tracking-normal sm:text-xl md:text-2xl` (~16px no mobile) |
+| Arte esquerda | `aspect-[3/5] w-9`, só um anel | cartão bege emoldurado (`bg-paper p-1 ring-1 ring-ink/30`), `aspect-[2/3] w-10 sm:w-16 md:w-24` (~46×72 CSS com a moldura), centralizado na vertical (coluna `self-stretch`) |
+| Fio rosa | não havia | linha fina decorativa (`bg-salmon w-px`, `aria-hidden`) que sobe do topo do cartão até a borda superior da faixa (`flex-1` com margem negativa que compensa o `py`) |
+| Arte direita (banjo) | `w-16 sm:w-24 md:w-32`, `-translate-y-1/3` | `w-12 sm:w-20 md:w-28` (~48×54 CSS), `-translate-y-1/6` (a folha fica quase dentro da faixa), sem rotação |
+| Conjunto central | `max-w-xl` | `max-w-[14rem] sm:max-w-md` (224px ≈ 220px do modelo no mobile) |
+| Ícones sociais | `size-5` | `size-4` (~16px), alvo `size-11` mantido |
+**Achado de bug (corrigido):** a classe `font-body` usada nos títulos de `StoryCard` e `ContentCard` **não existe** no tema (só `--font-sans`/`--font-heading`), então os títulos dos cards caíam na fonte manuscrita do `h3`/`h2` global em vez da serifa do modelo. Trocada por `font-sans` (confirmado no CSS compilado: `.font-sans{font-family:var(--font-body),…}`). Sem arte esquerda real: mantidos o placeholder SVG original com moldura e o fio em CSS. Testes: `tests/newsletter-band.test.tsx` (py-3, cartão 2/3 emoldurado, fio decorativo, `font-sans`/`text-base`/`font-normal` no título, `max-w-[14rem]`, `-translate-y-1/6`, `w-12`). Não verificado visualmente.
+
 **NÃO verificado**
 - **A UI não foi verificada visualmente** (sem Playwright, não aprovado; sem capturas em 360/768/1280). Responsividade, overlay do menu (foco preso/Esc), rolagem horizontal e axe: **não testados**; só HTML do servidor e testes de componente em jsdom.
 - Ícones sociais: `SOCIAL_LINKS` (`src/lib/site.ts`) está vazio, então não aparecem até haver URLs (pergunta 4).

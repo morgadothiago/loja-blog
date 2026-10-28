@@ -235,3 +235,6 @@ Implementada em 2026-10-27 (spec aprovada pelo usuário; defaults da seção 11)
 **Desvios**: `vitest.config.mts` ganhou `server.deps.inline` para `next-auth` (importa `next/server` sem extensão). `unstable_rethrow` é API marcada "unstable" na doc 16.4.3, mas é a recomendada para este caso. Playwright não aprovado: páginas de erro **não verificadas visualmente**.
 
 **Pendências**: monitoramento externo (Sentry) fora do escopo; rate limit só em login/cadastro (upload/checkout/newsletter: dívida); `forbidden()`/`unauthorized()` seguem experimentais (não usados).
+
+**Adendo (2026-10-28): toasts de autenticação**
+O mecanismo de toast é o mesmo do `DeleteButton`/`useServerAction` (sonner via `Toaster` do layout raiz). Os formulários de login e cadastro passam a disparar `toast.error(translateError(t, error))` além do aviso inline; o sucesso usa o cookie `flash` + `FlashToast` (ver spec 0002, adendo). `Toaster` com `theme="light"`, `top-center` e redução de movimento. Códigos usados: `INVALID_CREDENTIALS`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, `NETWORK` (todos no catálogo `error.*` nas 3 línguas).

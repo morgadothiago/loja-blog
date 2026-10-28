@@ -36,15 +36,34 @@ describe("StoryCard", () => {
 });
 
 describe("RecentStories", () => {
-  it("0 posts: mensagem de estado vazio e link para o blog", async () => {
+  it("0 posts: mantém o esqueleto da referência com 3 cards de exemplo (título, categoria · ano) e sem link 'ver todas'", async () => {
     render(await RecentStories({ stories: [] }));
     expect(screen.getByRole("heading", { level: 2, name: "Histórias RECENTES" })).toBeInTheDocument();
-    expect(screen.getByText("Em breve, novas histórias.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ver todas as histórias" })).toHaveAttribute("href", "/blog");
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(screen.getByRole("heading", { level: 3, name: "Título de uma história de exemplo" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Exemplo · 2024/i)).toHaveLength(3);
+    for (const a of screen.getAllByRole("link")) expect(a).toHaveAttribute("href", "/blog");
+    expect(screen.queryByText(/Ver todas/)).toBeNull();
+    expect(screen.queryByText(/Em breve/)).toBeNull();
   });
 
   it.each([1, 3])("%i post(s): um item de lista por post", async (n) => {
     render(await RecentStories({ stories: Array.from({ length: n }, (_, i) => story(i + 1)) }));
     expect(within(screen.getByRole("list")).getAllByRole("listitem")).toHaveLength(n);
+  });
+});
+
+describe("RecentStories: layout da referência", () => {
+  it("3 colunas desde o mobile (sem carrossel/rolagem horizontal), cards com proporções diferentes e leve rotação", async () => {
+    const { container } = render(await RecentStories({ stories: [1, 2, 3].map((n) => story(n)) }));
+    const list = screen.getByRole("list");
+    expect(list).toHaveClass("grid", "grid-cols-3");
+    expect(list.className).not.toMatch(/overflow-x|snap-/);
+    const frames = Array.from(container.querySelectorAll<HTMLElement>("li a > div"));
+    const aspects = frames.map((f) => /aspect-\S+/.exec(f.className)?.[0]);
+    expect(new Set(aspects).size).toBe(3);
+    expect(frames[2]).toHaveClass("rotate-1");
+    expect(frames[0].className).not.toMatch(/rotate-/);
   });
 });

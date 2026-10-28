@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import { usePathname } from "next/navigation";
 import { MenuIcon, XIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -10,10 +10,11 @@ import { cn } from "@/lib/utils";
 import { useSolidAfter } from "@/components/header/use-solid-after";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
-// Altura do conteúdo do header (h-[58px]) + 1px da borda.
+// Altura do conteúdo do header (h-[3.625rem]) + 1px da borda.
 const HEADER_HEIGHT_PX = 59;
 
-export type HeaderImage = { src: string; width: number; height: number };
+// Import estático (src/assets): { src, width, height } reais do arquivo original.
+export type HeaderImage = StaticImageData;
 
 export type HeaderItem = {
   href: string;
@@ -44,6 +45,8 @@ export type AppHeaderProps = {
   menuFooter?: React.ReactNode;
   /** Hambúrguer + overlay em todas as larguras (sem navegação em linha no desktop). */
   overlayOnly?: boolean;
+  /** Imagem do botão que abre o menu (decorativa; o nome acessível é `labels.openMenu`). Sem ela, ícone de linhas. */
+  menuImage?: HeaderImage;
   /** Imagem do botão de fechar do overlay (o nome acessível continua em `labels.closeMenu`). */
   closeImage?: HeaderImage;
   /** Fixa o header no topo ao rolar (`sticky`: reserva o espaço, sem layout shift). */
@@ -56,7 +59,7 @@ export type AppHeaderProps = {
 
 // Cabeçalho reutilizável (~58px): marca à esquerda, menu à direita. Mobile: gatilho
 // hambúrguer abre um Sheet de tela cheia (foco preso, Esc e aria-modal vêm do base-ui).
-export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktopActions, menuHeaderActions, menuFooter, sticky, solidAfterId, overlayOnly, closeImage, labels }: AppHeaderProps) {
+export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktopActions, menuHeaderActions, menuFooter, sticky, solidAfterId, overlayOnly, menuImage, closeImage, labels }: AppHeaderProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const solid = useSolidAfter(solidAfterId, HEADER_HEIGHT_PX);
@@ -71,7 +74,7 @@ export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktop
       )}
     >
       {/* 58px é a altura pedida para o header (arbitrário deliberado). */}
-      <div className="px-fluid flex h-[58px] w-full items-center gap-2">
+      <div className="page-width flex h-[3.625rem] items-center gap-2">
         <Link href={brandHref} className="font-heading text-2xl tracking-wide">
           {brand}
         </Link>
@@ -104,7 +107,15 @@ export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktop
             <SheetTrigger
               render={<Button variant="ghost" size="icon" className={cn("size-11", !overlayOnly && "lg:hidden")} aria-label={labels.openMenu} />}
             >
-              <MenuIcon className="size-6" />
+              {menuImage ? (
+                // Ícone desenhado à mão (decorativo: o nome do botão é o aria-label). Dimensões intrínsecas do
+                // arquivo original reservam o espaço; h-8 com largura automática mantém a proporção. O PNG é
+                // BRANCO sobre transparente: `brightness-0` o deixa preto (contraste máximo sobre o bege e o
+                // claro do header). Em header escuro, remover `brightness-0`.
+                <Image src={menuImage} alt="" className="h-8 w-auto brightness-0" />
+              ) : (
+                <MenuIcon className="size-6" />
+              )}
             </SheetTrigger>
             {/* Mobile: tela cheia. ≥640px: painel lateral (max-w-md) para não esticar demais. */}
             {/* Painel lateral (direita) em todas as larguras: tela cheia em <640px, 28rem (max-w-md) a partir de sm. */}
@@ -119,13 +130,13 @@ export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktop
               )}
             >
               {/* Cabeçalho fixo do painel */}
-              <div className="px-fluid flex h-[58px] shrink-0 items-center gap-2">
+              <div className="px-fluid flex h-[3.625rem] shrink-0 items-center gap-2">
                 <SheetTitle className="text-2xl">{labels.menuTitle}</SheetTitle>
                 <div className="ml-auto flex items-center gap-1">
                   {menuHeaderActions}
                   <SheetClose render={<Button variant="ghost" size="icon" className="size-11" aria-label={labels.closeMenu} />}>
                     {closeImage ? (
-                      <Image src={closeImage.src} alt="" width={closeImage.width} height={closeImage.height} className="h-8 w-auto" />
+                      <Image src={closeImage} alt="" className="h-8 w-auto" />
                     ) : (
                       <XIcon className="size-6" />
                     )}
@@ -155,10 +166,8 @@ export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktop
                             // alt = texto do letreiro; width/height intrínsecos reservam o espaço (sem layout shift)
                             // e a altura de exibição é controlada por CSS para manter o ritmo entre os itens.
                             <Image
-                              src={i.image.src}
+                              src={i.image}
                               alt={i.label}
-                              width={i.image.width}
-                              height={i.image.height}
                               sizes="(min-width: 1024px) 240px, (min-width: 640px) 360px, 300px"
                               className={cn(
                                 "w-auto max-w-full",

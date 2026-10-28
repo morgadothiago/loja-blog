@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-body), ui-serif, Georgia, serif;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-display), cursive;
 
@@ -142,16 +142,21 @@
   --sidebar-ring: oklch(0.712 0.129 308);
 }
 
-/* Padding lateral único do site: 20px (px-5) em todas as larguras, sem container de largura
+/* Padding lateral único do site: 1.25rem (px-5) em todas as larguras, sem container de largura
    máxima. Vale para o conteúdo interno; as faixas de fundo seguem de ponta a ponta. */
 @utility px-fluid {
   @apply px-5;
 }
 
-/* Largura do conteúdo em telas grandes: proporção da janela (4/5 em lg, 2/3 em 2xl), centralizada.
-   Sem max-w em px/rem e sem alturas em svh: o bloco cresce proporcionalmente e a imagem mantém o aspect-ratio. */
-@utility content-fit {
-  @apply mx-auto w-full lg:w-4/5 2xl:w-2/3;
+/* Largura máxima ÚNICA do conteúdo. Fundos das seções vão de ponta a ponta; o conteúdo fica em
+   .page-width (centralizado, teto --content-max, padding lateral fixo de 1.25rem). Acima do teto o
+   excedente vira margem do fundo, nunca largura de conteúdo. Ajuste só este valor. */
+:root {
+  --content-max: 90rem;
+}
+@utility page-width {
+  @apply mx-auto w-full px-5;
+  max-width: var(--content-max);
 }
 
 @layer base {
@@ -163,10 +168,18 @@
   }
   html {
     @apply font-sans;
-    /* Header fixo (58px + borda): âncoras e foco não ficam escondidos atrás dele. */
+    /* Header fixo (3.625rem + borda): âncoras e foco não ficam escondidos atrás dele. */
     scroll-padding-top: 3.75rem;
   }
   h1, h2, h3 {
     @apply font-heading tracking-wide;
+  }
+}
+/* Toasts (sonner): sem animação para quem pede movimento reduzido. */
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast],
+  [data-sonner-toast] * {
+    transition: none !important;
+    animation: none !important;
   }
 }

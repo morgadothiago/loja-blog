@@ -33,7 +33,7 @@ export function Flag({ locale, className }: { locale: Locale; className?: string
       viewBox="0 0 24 16"
       aria-hidden="true"
       focusable="false"
-      className={className ?? "h-4 w-6 shrink-0 rounded-[2px] ring-1 ring-foreground/20"}
+      className={className ?? "h-4 w-6 shrink-0 rounded-xs ring-1 ring-foreground/20"}
     >
       {FLAGS[locale]}
     </svg>

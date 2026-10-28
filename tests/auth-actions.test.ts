@@ -2,10 +2,13 @@ import { AuthError, CredentialsSignin } from "next-auth";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const signInMock = vi.hoisted(() => vi.fn());
-vi.mock("@/auth", () => ({ signIn: signInMock, signOut: vi.fn(), auth: vi.fn() }));
+const signOutMock = vi.hoisted(() => vi.fn());
+const flashMock = vi.hoisted(() => ({ setFlash: vi.fn() }));
+vi.mock("@/auth", () => ({ signIn: signInMock, signOut: signOutMock, auth: vi.fn() }));
+vi.mock("@/lib/flash", () => flashMock);
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "5.5.5.5" }), cookies: async () => ({ get: () => undefined }) }));
 
-import { login, register } from "@/actions/auth";
+import { login, logout, register } from "@/actions/auth";
 import { RateLimitedSignin } from "@/lib/auth-credentials";
 import { db } from "@/lib/db";
 import { passwordBytes, verifyPassword } from "@/lib/password";
@@ -16,6 +19,11 @@ const redirectError = (to: string) => Object.assign(new Error("NEXT_REDIRECT"), 
 
 beforeEach(async () => {
   signInMock.mockReset();
+  signOutMock.mockReset();
+  flashMock.setFlash.mockReset();
+  signOutMock.mockImplementation(async (o: { redirectTo: string }) => {
+    throw redirectError(o.redirectTo);
+  });
   signInMock.mockImplementation(async (_p: string, o: { redirectTo: string }) => {
     throw redirectError(o.redirectTo);
   });
@@ -103,5 +111,39 @@ describe("register", () => {
 
   it("callbackUrl hostil cai em /conta", async () => {
     await expect(reg({ email: "h@reg.test", callbackUrl: "https://evil.com" })).rejects.toMatchObject({ digest: expect.stringContaining("/conta") });
+  });
+});
+
+describe("toast de sucesso que sobrevive ao redirect (cookie flash)", () => {
+  it("login com sucesso grava flash=login antes de relançar o redirect", async () => {
+    await expect(login({ email: "a@b.com", password: "x" })).rejects.toMatchObject({ digest: expect.stringContaining("NEXT_REDIRECT") });
+    expect(flashMock.setFlash).toHaveBeenCalledTimes(1);
+    expect(flashMock.setFlash).toHaveBeenCalledWith("login");
+  });
+
+  it("login com falha (credencial, rate limit, config) NÃO grava flash", async () => {
+    signInMock.mockRejectedValueOnce(new CredentialsSignin());
+    await login({ email: "a@b.com", password: "x" });
+    signInMock.mockRejectedValueOnce(new RateLimitedSignin());
+    await login({ email: "a@b.com", password: "x" });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    signInMock.mockRejectedValueOnce(new AuthError("Configuration"));
+    await login({ email: "a@b.com", password: "x" });
+    spy.mockRestore();
+    expect(flashMock.setFlash).not.toHaveBeenCalled();
+  });
+
+  it("cadastro com sucesso grava flash=register; logout grava flash=logout e redireciona para /", async () => {
+    await expect(register({ name: "Ana", email: "flash@reg.test", password: "Senha@12345" })).rejects.toBeTruthy();
+    expect(flashMock.setFlash).toHaveBeenCalledWith("register");
+    await expect(logout()).rejects.toMatchObject({ digest: expect.stringContaining(";/;") });
+    expect(flashMock.setFlash).toHaveBeenLastCalledWith("logout");
+  });
+
+  it("cadastro que falha (e-mail duplicado) não grava flash", async () => {
+    await expect(register({ name: "Ana", email: "dup@reg.test", password: "Senha@12345" })).rejects.toBeTruthy();
+    flashMock.setFlash.mockReset();
+    expect(await register({ name: "Ana", email: "DUP@reg.test", password: "Senha@12345" })).toMatchObject({ ok: false });
+    expect(flashMock.setFlash).not.toHaveBeenCalled();
   });
 });

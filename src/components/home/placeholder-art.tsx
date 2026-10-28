@@ -1,6 +1,6 @@
 // Placeholders originais e abstratos (sem ativos de terceiros). Só tokens de marca:
 // trocar por <Image> quando houver arte final. Decorativos: aria-hidden.
-type Variant = "hero" | "banner" | "banner-b" | "banner-c" | "card-a" | "card-b" | "card-c" | "feature" | "side";
+type Variant = "hero" | "banner" | "banner-b" | "banner-c" | "card-a" | "card-b" | "card-c" | "feature" | "side" | "side-b";
 
 const VIEWBOX: Record<Variant, string> = {
   hero: "0 30 400 220",
@@ -12,6 +12,7 @@ const VIEWBOX: Record<Variant, string> = {
   "card-c": "0 0 300 300",
   feature: "0 0 200 240",
   side: "0 0 120 200",
+  "side-b": "0 0 120 200",
 };
 
 function Shapes({ variant }: { variant: Variant }) {
@@ -81,6 +82,15 @@ function Shapes({ variant }: { variant: Variant }) {
           <circle cx="100" cy="70" r="46" className="fill-mustard" />
           <path d="M100 116 V190 M100 150 L60 120 M100 150 L140 120" className="stroke-ink" fill="none" strokeWidth="6" strokeLinecap="round" />
           <ellipse cx="100" cy="215" rx="70" ry="14" className="fill-salmon" />
+        </>
+      );
+    case "side-b":
+      return (
+        <>
+          <path d="M60 190 Q70 120 55 70" className="stroke-navy" fill="none" strokeWidth="5" strokeLinecap="round" />
+          <circle cx="55" cy="55" r="26" className="fill-purple" />
+          <circle cx="82" cy="85" r="16" className="fill-salmon" />
+          <circle cx="36" cy="92" r="14" className="fill-coral" />
         </>
       );
     case "side":

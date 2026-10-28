@@ -1,5 +1,11 @@
 import type { MessageKey } from "@/lib/i18n";
-import type { ImageSlot } from "@/lib/site";
+import type { ImageSlot } from "@/lib/home-images";
+import collages from "@/assets/About/Characters_1.png";
+import cvButton from "@/assets/About/DownloadCV.png";
+import portrait from "@/assets/About/Foto_ppal.jpg";
+import photos from "@/assets/About/Photos2_png.png";
+import divider from "@/assets/About/Serzinhovoador.png";
+import whale from "@/assets/About/Whale.png";
 
 // Conteúdo das páginas do menu: arquivo tipado (sem banco). Textos nas 3 línguas ficam em
 // src/lib/i18n.ts (as chaves abaixo são checadas pelo tipo). Para trocar o conteúdo de exemplo:
@@ -29,7 +35,16 @@ export const CONTENT_SECTIONS: Record<ListSectionId, ContentEntry[]> = {
   books: entries("books"),
 };
 
+// Página Sobre: imagens ORIGINAIS do cliente (src/assets/About), import estático = dimensões reais; o next/image
+// otimiza na entrega. Trocar/remover = editar aqui. As fotos são pessoais: o uso é autorizado pelo responsável.
 export const ABOUT = {
   paragraphKeys: ["about.p1", "about.p2", "about.p3"] as MessageKey[],
-  image: { altKey: "about.image.alt", fit: "contain" } as ImageSlot,
+  portrait: { src: portrait, altKey: "about.portrait.alt" as MessageKey },
+  photos: { src: photos, altKey: "about.photos.alt" as MessageKey },
+  whale: { src: whale, altKey: "home.carousel.1.alt" as MessageKey },
+  collages: { src: collages, altKey: "about.collages.alt" as MessageKey },
+  // Desenho decorativo branco (Serzinhovoador.png): divisor, escurecido por CSS (brightness-0).
+  divider: { src: divider },
+  // "download CV" (DownloadCV.png já é escuro). O link só aparece com SITE.cvUrl (sem link morto).
+  cv: { src: cvButton, labelKey: "about.cv.label" as MessageKey },
 };

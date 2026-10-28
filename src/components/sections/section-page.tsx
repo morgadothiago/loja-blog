@@ -4,7 +4,7 @@ import { MENU_ITEMS } from "@/lib/nav";
 import type { MessageKey } from "@/lib/i18n";
 
 // Casca das páginas do menu: faixa de título (mesma cor do hero) com o letreiro do item como h1
-// e uma frase curta; o conteúdo vem em `children`. Sem container: só o padding lateral px-fluid.
+// e uma frase curta; o conteúdo vem em `children`. Fundo full-bleed; conteúdo em page-width (teto único).
 export async function SectionPage({ id, children }: { id: string; children: React.ReactNode }) {
   const { t, locale } = await getT();
   const item = MENU_ITEMS.find((i) => i.id === id);
@@ -14,7 +14,7 @@ export async function SectionPage({ id, children }: { id: string; children: Reac
   return (
     <>
       <section className="bg-secondary text-foreground">
-        <div className="px-fluid flex flex-col items-center gap-3 pt-6 pb-8 text-center md:pb-10 lg:pb-12">
+        <div className="page-width flex flex-col items-center gap-3 pt-6 pb-8 text-center md:pb-10 lg:pb-12">
           <h1>
             {image ? (
               // alt = texto do letreiro; width/height intrínsecos reservam o espaço
@@ -34,9 +34,7 @@ export async function SectionPage({ id, children }: { id: string; children: Reac
           <p className="text-muted-foreground text-xs tracking-wider uppercase">{t("content.example")}</p>
         </div>
       </section>
-      <div className="px-fluid w-full py-8 md:py-12 lg:py-14">
-        <div className="content-fit">{children}</div>
-      </div>
+      <div className="page-width py-8 md:py-12 lg:py-14">{children}</div>
     </>
   );
 }

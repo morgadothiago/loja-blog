@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/i18n-server", async () => {
@@ -16,27 +16,28 @@ import { HomeBanner } from "@/components/home/home-banner";
 import { HomeHero } from "@/components/home/home-hero";
 
 describe("HomeHero", () => {
-  it("contém o carrossel (3 slides, overlay) acima do título e do subtítulo", async () => {
+  it("uma ilustração única (sem carrossel, controles nem overlay) acima do título e do subtítulo", async () => {
     render(await HomeHero());
-    const region = screen.getByRole("region", { name: "Carrossel de imagens" });
-    expect(within(region).getAllByRole("group")).toHaveLength(3);
-    expect(screen.getAllByTestId("carousel-overlay")).toHaveLength(3);
+    expect(screen.queryByRole("region")).toBeNull();
+    expect(screen.queryAllByTestId("carousel-overlay")).toHaveLength(0);
+    expect(screen.queryByRole("button")).toBeNull(); // sem setas/bolinhas/pausa
+    const slots = screen.getAllByTestId("slot");
+    expect(slots).toHaveLength(1);
     const h1 = screen.getByRole("heading", { level: 1 });
     expect(h1).toHaveTextContent("BEM-VINDO a um MAR de ENCONTROS");
-    // carrossel vem antes do título na ordem do documento
-    expect(region.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // título e subtítulo não ficam dentro do carrossel (nada sobre o overlay)
-    expect(within(region).queryByRole("heading")).toBeNull();
+    expect(slots[0].compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(h1.parentElement).toHaveClass("space-y-1");
+    expect(screen.getByText("SENTIR · Navegar · CONTEMPLar")).toHaveClass("text-purple");
   });
 });
 
 describe("HomeBanner", () => {
-  it("faixa 3:1 com legenda e sem carrossel", async () => {
+  it("faixa 2:1 no mobile e 3:1 em md+, com legenda e sem carrossel", async () => {
     const { container } = render(await HomeBanner());
     expect(container.querySelector("figure")).not.toBeNull();
-    expect(container.querySelector("figcaption")).toHaveTextContent("Ilustração de exemplo");
-    expect(container.querySelector(".aspect-\\[3\\/1\\]")).not.toBeNull();
+    expect(container.querySelector("figcaption")).toHaveTextContent("Mural de exemplo · Museu, Cidade, 2024");
+    const slot = container.querySelector("[data-testid='slot']")!;
+    expect(slot).toHaveClass("aspect-[2/1]", "md:aspect-[3/1]");
     expect(screen.queryByRole("region")).toBeNull();
     expect(screen.queryAllByTestId("carousel-overlay")).toHaveLength(0);
   });

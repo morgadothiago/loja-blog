@@ -20,6 +20,10 @@ type ControlledInputProps<T extends FieldValues> = Omit<
   name: FieldPath<T>;
   label: string;
   description?: string;
+  // Layouts compactos (ex.: campo ao lado de um botão): o erro é mostrado fora do campo, por quem chama;
+  // `describedBy` acrescenta os ids dessas mensagens ao aria-describedby do input.
+  hideError?: boolean;
+  describedBy?: string;
   // Opcional: sem ele, usa o FormProvider mais próximo.
   control?: Control<T>;
   hideLabel?: boolean;
@@ -34,6 +38,8 @@ export function ControlledInput<T extends FieldValues>({
   name,
   label,
   description,
+  hideError,
+  describedBy: extraDescribedBy,
   control,
   hideLabel,
   type = "text",
@@ -48,7 +54,7 @@ export function ControlledInput<T extends FieldValues>({
   const [shown, setShown] = useState(false);
   const errorId = `${id}-error`;
   const descId = `${id}-desc`;
-  const describedBy = [fieldState.error && errorId, description && descId].filter(Boolean).join(" ");
+  const describedBy = [!hideError && fieldState.error && errorId, description && descId, extraDescribedBy].filter(Boolean).join(" ");
 
   return (
     <Field data-invalid={fieldState.invalid || undefined} className={className}>
@@ -79,7 +85,7 @@ export function ControlledInput<T extends FieldValues>({
         )}
       </div>
       {description && <FieldDescription id={descId}>{description}</FieldDescription>}
-      {fieldState.error && <FieldError id={errorId} errors={[fieldState.error]} />}
+      {!hideError && fieldState.error && <FieldError id={errorId} errors={[fieldState.error]} />}
     </Field>
   );
 }

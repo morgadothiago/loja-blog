@@ -14,13 +14,13 @@ export function ContentCard({ entry, title, meta, index }: { entry: ContentEntry
     <article className="min-w-0">
       <div className={cn("bg-muted relative w-full overflow-hidden", ASPECTS[index % 3])}>
         {src ? (
-          <Image src={src} alt="" fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
+          <Image src={src} alt="" fill sizes="(min-width: 1440px) 450px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
         ) : (
           <PlaceholderArt variant={PLACEHOLDERS[index % PLACEHOLDERS.length]} className="size-full" />
         )}
       </div>
       <p className="text-muted-foreground mt-2 text-xs tracking-wider uppercase lg:mt-3">{meta}</p>
-      <h2 className="font-body mt-1 line-clamp-3 text-lg font-normal">{title}</h2>
+      <h2 className="font-sans mt-1 line-clamp-3 text-lg font-normal">{title}</h2>
     </article>
   );
 }

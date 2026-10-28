@@ -94,3 +94,18 @@ describe("HomeHeader (sessão no servidor)", () => {
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
   });
 });
+
+describe("HomeHeader (esqueleto da referência)", () => {
+  it("na barra só há logo e hambúrguer (carrinho fica dentro do menu)", async () => {
+    authMock.mockResolvedValue(null);
+    render(
+      <LanguageProvider initialLocale="pt-BR">
+        <CartProvider>{await HomeHeader()}</CartProvider>
+      </LanguageProvider>,
+    );
+    expect(screen.queryByRole("link", { name: /Carrinho/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Abrir menu" })).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Abrir menu" }));
+    expect(within(await screen.findByRole("dialog")).getByRole("link", { name: /Carrinho/ })).toHaveAttribute("href", "/carrinho");
+  });
+});

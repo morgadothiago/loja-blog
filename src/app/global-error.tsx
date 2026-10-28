@@ -5,7 +5,7 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
   const digest = error instanceof Error ? (error as Error & { digest?: string }).digest : undefined;
   return (
     <html lang="pt-BR">
-      <body style={{ fontFamily: "serif", textAlign: "center", padding: "4rem 1.25rem" }}>
+      <body style={{ fontFamily: "sans-serif", textAlign: "center", padding: "4rem 1.25rem" }}>
         <div role="alert">
           <h1>Algo deu errado / Something went wrong</h1>
           {digest && <p style={{ fontSize: "0.75rem" }}>Código / Code: {digest}</p>}

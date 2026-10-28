@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Caveat_Brush, Geist_Mono, Newsreader } from "next/font/google";
+import { Caveat_Brush, Geist_Mono, Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { Providers } from "@/components/providers";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from "@/lib/i18n";
 import "./globals.css";
 
-// Corpo em serifa editorial; títulos em letra manuscrita (como nas referências).
-const body = Newsreader({
+// Corpo em sans-serif (padrão do projeto); títulos em letra manuscrita (como nas referências).
+const body = Inter({
   variable: "--font-body",
   subsets: ["latin"],
 });

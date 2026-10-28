@@ -1,12 +1,12 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import { PlaceholderArt } from "@/components/home/placeholder-art";
 import { getT } from "@/lib/i18n-server";
-import type { ImageSlot } from "@/lib/site";
+import type { ImageSlot } from "@/lib/home-images";
 import { cn } from "@/lib/utils";
 
 type PlaceholderVariant = Parameters<typeof PlaceholderArt>[0]["variant"];
 
-// Slot de imagem da home: arquivo real (HOME_IMAGES em src/lib/site.ts) ou placeholder.
+// Slot de imagem da home: arquivo real (HOME_IMAGES em src/lib/home-images.ts) ou placeholder.
 // `className` dimensiona o slot (aspect-* e largura).
 export async function HomeImage({
   slot,
@@ -26,11 +26,38 @@ export async function HomeImage({
 }) {
   if (!slot.src) return <PlaceholderArt variant={placeholder} className={className} />;
   const { t } = await getT();
+  const alt = slot.altKey ? t(slot.altKey) : "";
+
+  // Recorte por CSS da região da arte (pixels do original, sem gerar arquivo): o contêiner tem a proporção do
+  // recorte e a imagem inteira é escalada e deslocada por porcentagens. Proporção original preservada.
+  if (slot.crop && typeof slot.src !== "string") {
+    const { x, y, width, height } = slot.crop;
+    const img: StaticImageData = slot.src;
+    return (
+      <div className={cn("relative overflow-hidden", className)}>
+        <Image
+          src={img}
+          alt={alt}
+          sizes={sizes}
+          quality={quality}
+          fetchPriority={eager ? "high" : undefined}
+          className="absolute max-w-none"
+          style={{
+            width: `${(img.width / width) * 100}%`,
+            height: "auto",
+            left: `${(-x / width) * 100}%`,
+            top: `${(-y / height) * 100}%`,
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative overflow-hidden", className)}>
       <Image
         src={slot.src}
-        alt={slot.altKey ? t(slot.altKey) : ""}
+        alt={alt}
         fill
         sizes={sizes}
         quality={quality}
