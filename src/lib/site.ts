@@ -13,7 +13,7 @@ export const SITE = {
     { labelKey: "footer.terms" },
     { labelKey: "footer.privacy" },
     { labelKey: "footer.cookies" },
-    { labelKey: "footer.contact" },
+    { labelKey: "footer.contact", href: "/contato" },
     { labelKey: "footer.manageCookies" },
   ] as { labelKey: MessageKey; href?: string }[],
   // Crédito "Site por ..." (canto direito do rodapé). Sem valor = não aparece.

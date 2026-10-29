@@ -7,7 +7,8 @@ import { CartLink } from "@/components/home/cart-link";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getAuthCta } from "@/lib/auth-cta";
 import { getT } from "@/lib/i18n-server";
-import { MENU_CLOSE_IMAGE, MENU_HAMBURGER_IMAGE, MENU_ITEMS } from "@/lib/nav";
+import { PRACTICES, practiceSlug } from "@/lib/content/details";
+import { MENU_CLOSE_IMAGE, MENU_ITEMS } from "@/lib/nav";
 import { SITE } from "@/lib/site";
 
 // Server Component: a sessão é decidida no servidor (sem flash após hidratação)
@@ -24,9 +25,10 @@ export async function HomeHeader() {
         // transparente à esquerda (~17%): o -ml alinha as letras à margem de 20px.
         <Image src={logo} alt={SITE.name} priority className="-ml-7 h-12 w-auto brightness-0 md:h-14" />
       }
-      overlayOnly
       closeImage={MENU_CLOSE_IMAGE}
-      menuImage={MENU_HAMBURGER_IMAGE}
+      menuLabel={t("menu.label")}
+      // Sublista "Práticas" em texto (decisão 2 da 0013: não há letreiro PNG para ela).
+      groups={[{ label: t("practice.nav"), afterHref: "/projetos", items: PRACTICES.map((p) => ({ href: `/praticas/${practiceSlug(p)}`, label: t(`practice.${p}`) })) }]}
       items={MENU_ITEMS.map((item) => ({
         href: item.href,
         label: t(item.altKey),
@@ -34,10 +36,16 @@ export async function HomeHeader() {
         lines: item.lines,
       }))}
       sticky
-      solidAfterId="home-hero"
+      solidAfterId="home-top"
       cta={{ href: cta.href, label: cta.label, icon: <AuthCtaIconView name={cta.icon} /> }}
       labels={{ openMenu: t("menu.open"), closeMenu: t("menu.close"), menuTitle: t("menu.title"), nav: t("nav.main") }}
-      desktopActions={<LanguageSwitcher className="h-11" />}
+      // Barra (xl+): idioma compacto + carrinho em ícone; a conta vem do `cta` (ícone com nome acessível).
+      desktopActions={
+        <>
+          <LanguageSwitcher compact className="h-11" />
+          <CartLink label={t("nav.cart")} />
+        </>
+      }
       // Cabeçalho do painel: [Idioma] [Carrinho] lado a lado (o X vem depois, no AppHeader).
       menuHeaderActions={
         <>

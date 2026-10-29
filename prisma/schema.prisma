@@ -86,6 +86,19 @@ model Subscriber {
   createdAt DateTime @default(now())
 }
 
+// Mensagens do formulário de contato (spec 0012). Só o ADMIN lê (dashboard/mensagens). locale = idioma do cookie.
+model ContactMessage {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  locale    String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([createdAt])
+}
+
 // status: "PENDING" | "PAID" | "SHIPPED" | "DELIVERED" | "CANCELED"
 model Order {
   id         String      @id @default(cuid())

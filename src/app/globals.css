@@ -9,9 +9,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-display), cursive;
+  --font-heading: var(--font-display), Georgia, serif;
 
-  --font-display: var(--font-display), cursive;
+  --font-display: var(--font-display), Georgia, serif;
+  /* Acento manuscrito de UMA linha (kicker, "voltar", ano): nunca em texto corrido. */
+  --font-hand: var(--font-caveat), cursive;
 
   /* Paleta da marca — use como bg-salmon, text-purple, border-teal etc. */
   --color-cream: var(--cream);
@@ -19,6 +21,7 @@
   --color-salmon: var(--salmon);
   --color-mustard: var(--mustard);
   --color-ink: var(--ink);
+  --color-moss: var(--moss);
   --color-purple: var(--purple);
   --color-teal: var(--teal);
   --color-coral: var(--coral);
@@ -64,48 +67,53 @@
 :root {
   /* Marca (iguais no claro e no escuro) */
   --cream: oklch(0.930 0.033 79);
-  --paper: oklch(0.963 0.025 87);
+  --paper: oklch(0.965 0.018 85); /* = papel do theme.css do protótipo (0013) */
   --salmon: oklch(0.790 0.101 26);
   --mustard: oklch(0.844 0.124 90);
-  --ink: oklch(0.221 0.009 59);
+  --ink: oklch(0.24 0.03 150);
   --purple: oklch(0.439 0.174 306);
   --teal: oklch(0.651 0.102 191);
   --coral: oklch(0.610 0.169 37);
   --navy: oklch(0.422 0.105 260);
+  /* Tema do protótipo (spec 0011). Musgo: 4,81:1 sobre o papel (medido em tests/theme.test.ts). */
+  --moss: oklch(0.52 0.08 140);
 
   /* Tokens semânticos do shadcn */
-  --background: oklch(0.963 0.025 87);
-  --foreground: oklch(0.221 0.009 59);
-  --card: oklch(0.983 0.018 86);
-  --card-foreground: oklch(0.221 0.009 59);
-  --popover: oklch(0.983 0.018 86);
-  --popover-foreground: oklch(0.221 0.009 59);
-  --primary: oklch(0.221 0.009 59);
-  --primary-foreground: oklch(0.963 0.025 87);
-  --secondary: oklch(0.930 0.033 79);
-  --secondary-foreground: oklch(0.221 0.009 59);
-  --muted: oklch(0.923 0.035 83);
-  --muted-foreground: oklch(0.491 0.025 65);
-  --accent: oklch(0.844 0.124 90);
-  --accent-foreground: oklch(0.221 0.009 59);
+  --background: oklch(0.965 0.018 85);
+  --foreground: oklch(0.24 0.03 150);
+  --card: oklch(0.98 0.012 85);
+  --card-foreground: oklch(0.24 0.03 150);
+  --popover: oklch(0.98 0.012 85);
+  --popover-foreground: oklch(0.24 0.03 150);
+  /* Terracota do protótipo (L 0,58) dava 4,31:1 com texto claro: escurecido para L 0,52 (5,56:1; texto
+     da cor sobre o papel 5,32:1). Medido em tests/theme.test.ts. */
+  --primary: oklch(0.52 0.15 40);
+  --primary-foreground: oklch(0.98 0.012 85);
+  --secondary: oklch(0.91 0.03 95);
+  --secondary-foreground: oklch(0.24 0.03 150);
+  --muted: oklch(0.92 0.022 85);
+  --muted-foreground: oklch(0.45 0.03 140);
+  --accent: oklch(0.86 0.06 120);
+  --accent-foreground: oklch(0.24 0.03 150);
   --destructive: oklch(0.548 0.176 33);
-  --border: oklch(0.873 0.044 82);
-  --input: oklch(0.873 0.044 82);
-  --ring: oklch(0.439 0.174 306);
+  --border: oklch(0.24 0.03 150 / 18%);
+  --input: oklch(0.24 0.03 150 / 30%);
+  --ring: oklch(0.52 0.15 40);
   --chart-1: oklch(0.439 0.174 306);
   --chart-2: oklch(0.651 0.102 191);
   --chart-3: oklch(0.610 0.169 37);
   --chart-4: oklch(0.844 0.124 90);
   --chart-5: oklch(0.790 0.101 26);
   --sidebar: oklch(0.930 0.033 79);
-  --sidebar-foreground: oklch(0.221 0.009 59);
+  --sidebar-foreground: oklch(0.24 0.03 150);
   --sidebar-primary: oklch(0.439 0.174 306);
   --sidebar-primary-foreground: oklch(0.963 0.025 87);
   --sidebar-accent: oklch(0.844 0.124 90);
-  --sidebar-accent-foreground: oklch(0.221 0.009 59);
-  --sidebar-border: oklch(0.873 0.044 82);
-  --sidebar-ring: oklch(0.439 0.174 306);
-  --radius: 0.75rem;
+  --sidebar-accent-foreground: oklch(0.24 0.03 150);
+  --sidebar-border: oklch(0.24 0.03 150 / 18%);
+  --sidebar-ring: oklch(0.52 0.15 40);
+  /* Raio do protótipo (0,25rem): afeta botões, cards e inputs do site todo. */
+  --radius: 0.25rem;
 }
 
 .dark {
@@ -165,6 +173,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Fundo pontilhado sutil do protótipo; em rem e derivado do texto (some no escuro sem hex solto). */
+    background-image: radial-gradient(color-mix(in oklch, var(--foreground) 5%, transparent) 0.0625rem, transparent 0.0625rem);
+    background-size: 1.375rem 1.375rem;
   }
   html {
     @apply font-sans;
@@ -172,8 +183,77 @@
     scroll-padding-top: 3.75rem;
   }
   h1, h2, h3 {
-    @apply font-heading tracking-wide;
+    @apply font-heading font-normal;
+    letter-spacing: -0.02em; /* valor exato do theme.css do protótipo (tracking-tight = -0.025em) */
   }
+  ::selection {
+    background: var(--accent);
+  }
+}
+
+/* Utilitários de colagem e movimento do protótipo (spec 0011), em rem. Movimento SÓ com
+   prefers-reduced-motion: no-preference e sem loop (WCAG 2.2.2/2.3.3); sem a preferência o estado
+   final aparece direto. */
+@utility font-hand {
+  font-family: var(--font-hand);
+  font-weight: 500; /* o theme.css do protótipo carrega só Caveat 500 */
+}
+
+@utility ink-link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 0.0625rem;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  &:hover,
+  &:focus-visible {
+    background-size: 100% 0.0625rem;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    transition: background-size 0.4s ease;
+  }
+}
+
+@utility wobble {
+  @media (prefers-reduced-motion: no-preference) {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    &:hover {
+      transform: rotate(-1deg) scale(1.02);
+    }
+  }
+}
+
+@utility fade-up {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: fade-up 0.4s ease both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Adereços de colagem: usar com parcimônia (um por página, nunca em lista densa). */
+@utility torn {
+  clip-path: polygon(0.6% 1.4%, 12% 0.2%, 27% 1.6%, 44% 0.4%, 61% 1.8%, 78% 0.5%, 92% 1.5%, 99.4% 0.6%, 99% 14%, 99.6% 33%, 98.8% 52%, 99.5% 70%, 98.9% 86%, 99.4% 98.6%, 86% 99.3%, 68% 98.4%, 50% 99.6%, 32% 98.6%, 15% 99.5%, 4% 98.8%, 0.7% 99.4%, 1.2% 84%, 0.4% 66%, 1.3% 47%, 0.5% 29%, 1.1% 12%);
+}
+
+@utility paper-shadow {
+  filter: drop-shadow(0 0.75rem 1.25rem color-mix(in oklch, var(--foreground) 22%, transparent));
+}
+
+@utility stitch {
+  border: 0.09375rem dashed color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+@utility tape {
+  clip-path: polygon(1.5% 10%, 98.5% 2%, 100% 90%, 0% 98%);
 }
 /* Toasts (sonner): sem animação para quem pede movimento reduzido. */
 @media (prefers-reduced-motion: reduce) {

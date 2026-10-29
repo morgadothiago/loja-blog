@@ -3,6 +3,9 @@ import type { MessageKey } from "@/lib/i18n"
 import banjo from "@/assets/About/Characters_2(1).png"
 import featureArt from "@/assets/About/Characters_2.png"
 import whale from "@/assets/About/Whale.png"
+import muralDetail from "@/assets/Home/moth-mural-detail.jpg"
+import muralWide from "@/assets/Home/moth-mural-wide.jpg"
+import portrait from "@/assets/Home/elena-portrait.jpg"
 export type ImageSource = string | StaticImageData
 
 export type ImageSlot = {
@@ -21,9 +24,10 @@ export const HOME_IMAGES = {
     { altKey: "home.carousel.2.alt" },
     { altKey: "home.carousel.3.alt" },
   ] as ImageSlot[],
-  banner: { altKey: "home.banner.alt" } as ImageSlot, // ~3:1 (panorâmica)
-  // Capa de reserva dos 3 cards quando o post não tem coverUrl (o post real sempre vence).
-  stories: [{}, {}, {}] as ImageSlot[],
+  // Spec 0013: imagens do protótipo da própria artista (src/assets/Home), import estático.
+  introMural: { src: muralDetail, altKey: "home.mural.alt" } as ImageSlot, // 1400x1700 (4:5)
+  banner: { src: muralWide, altKey: "home.banner.alt" } as ImageSlot, // 1400x700 (2:1)
+  portrait: { src: portrait, altKey: "home.portrait.alt" } as ImageSlot, // 379x592 (baixa resolução)
   // Destaque: Characters_2.png (1688x2300, alfa): figura com flor amarela no topo, violão no tronco, em
   // equilíbrio sobre uma gangorra com olho. ORIGINAL, sem recorte; caixa com a proporção do arquivo.
   feature: {

@@ -4,26 +4,33 @@ import { useMemo } from "react";
 import { MailIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormProvider, useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { subscribeNewsletter } from "@/actions/newsletter";
 import { ControlledInput } from "@/components/forms/controlled-input";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/contexts/language-context";
+import { runWithGuards } from "@/lib/client-action";
 import { createNewsletterSchema, type NewsletterFormValues } from "@/lib/schemas/newsletter";
 
 export function NewsletterForm() {
   const { t } = useI18n();
   const schema = useMemo(() => createNewsletterSchema(t), [t]);
   const methods = useForm<NewsletterFormValues>({
-    resolver: yupResolver(schema),
+    resolver: zodResolver(schema),
     defaultValues: { email: "", website: "" },
   });
   const { handleSubmit, reset, register, formState } = methods;
 
-  // Por enquanto, e-mail válido só dispara um toast (sem gravar): subscribeNewsletter fica pronta
-  // em src/actions/newsletter.ts para ligar aqui quando o banco entrar.
-  const onSubmit = handleSubmit(() => {
-    toast.success(t("newsletter.success"));
-    reset({ email: "", website: "" });
+  // A validação do cliente é conveniência; o servidor valida de novo, aplica honeypot e é idempotente.
+  // Sucesso e falha viram toast; em falha o e-mail digitado é preservado para nova tentativa.
+  const onSubmit = handleSubmit(async (values) => {
+    const result = await runWithGuards(() => subscribeNewsletter(values));
+    if (result.ok) {
+      toast.success(t("newsletter.success"));
+      reset({ email: "", website: "" });
+    } else {
+      toast.error(t("newsletter.error.generic"));
+    }
   });
 
   const error = formState.errors.email?.message;
@@ -31,41 +38,26 @@ export function NewsletterForm() {
   return (
     <FormProvider {...methods}>
       <form onSubmit={onSubmit} noValidate className="flex w-full flex-col items-center gap-2">
-        {/* Campo e botão SEMPRE lado a lado (inclusive 360px), como no layout aprovado. O rótulo é
-            só para leitores de tela; o consentimento e o erro ficam abaixo, discretos, para não
-            espremer a linha. */}
-        <div className="group bg-paper ring-ink/15 relative flex w-full items-center overflow-hidden rounded-full shadow-[0_0.125rem_0.375rem_rgb(0_0_0/0.12)] ring-1">
-          {/* Vazio: ícone + "Digite seu e-mail" centralizados juntos (overlay; o placeholder real fica
-              transparente, mas segue existindo para leitores de tela e :placeholder-shown). Com texto
-              digitado: o ícone vai para a esquerda e o texto fica centralizado. */}
-          <div className="group/field relative min-w-0 flex-1 justify-center ">
-            <ControlledInput<NewsletterFormValues>
-              name="email"
-              type="email"
-              label={t("newsletter.label")}
-              hideLabel
-              hideError
-              describedBy={error ? "newsletter-error newsletter-consent" : "newsletter-consent"}
-              placeholder={t("newsletter.placeholder")}
-              autoComplete="email"
-              inputMode="email"
-              inputClassName="border-transparent bg-transparent text-ink h-11 md:h-14 rounded-l-full rounded-r-none pr-4 pl-1 text-left text-sm md:pl-[calc(2.1875rem+1.8cqw)]  md:text-[1.4cqw] shadow-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/60 placeholder:text-transparent dark:bg-transparent"
-            />
-            <div
-              aria-hidden="true"
-              className="text-ink/55 group-focus-within/field:text-ink pointer-events-none absolute inset-0 hidden items-center justify-start pl-5 gap-0 text-xs whitespace-nowrap sm:text-sm transition-colors group-has-[input:placeholder-shown]/field:flex md:text-[1.4cqw]"
-            >
-              <MailIcon className="size-4 md:size-[1.8cqw]" />
-              <span>{t("newsletter.placeholder")}</span>
-            </div>
-            <MailIcon
-              aria-hidden="true"
-              className="text-ink/50 group-focus-within/field:text-ink pointer-events-none absolute top-1/2  size-4 -translate-y-1/2 transition-colors group-has-[input:placeholder-shown]/field:hidden md:size-[1.8cqw] p"
-            />
-          </div>
+        {/* Campo e botão sempre lado a lado (inclusive 360px). Pílula: [ícone][campo][botão] em flex, sem overlay absoluto (o ícone nunca encosta no texto digitado,
+            em nenhuma largura). Medidas em rem; texto >= 1rem (sem zoom automático no iOS). */}
+        <div className="bg-paper ring-ink/15 focus-within:ring-ink/60 flex w-full items-center overflow-hidden rounded-full shadow-[0_0.125rem_0.375rem_rgb(0_0_0/0.12)] ring-1 focus-within:ring-2">
+          <MailIcon aria-hidden="true" className="text-ink/70 ml-4 size-5 shrink-0" />
+          <ControlledInput<NewsletterFormValues>
+            name="email"
+            type="email"
+            label={t("newsletter.label")}
+            hideLabel
+            hideError
+            describedBy={error ? "newsletter-error newsletter-consent" : "newsletter-consent"}
+            placeholder={t("newsletter.placeholder")}
+            autoComplete="email"
+            inputMode="email"
+            className="min-w-0 flex-1"
+            inputClassName="text-ink placeholder:text-ink/70 h-12 rounded-none border-transparent bg-transparent px-3 text-base shadow-none outline-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent md:h-14"
+          />
           <Button
             type="submit"
-            className="bg-ink text-paper hover:bg-ink/85 active:bg-ink/70 h-11 md:h-14 shrink-0 rounded-full rounded-l-none px-4 text-xs sm:px-6 md:px-[2.6cqw] md:text-[1.3cqw] font-semibold tracking-wider uppercase transition-colors"
+            className="bg-ink text-paper hover:bg-ink/85 active:bg-ink/70 h-12 shrink-0 rounded-full rounded-l-none px-5 text-sm font-semibold md:h-14 md:px-8 tracking-wider uppercase transition-colors"
           >
             {t("newsletter.submit")}
           </Button>

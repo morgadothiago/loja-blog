@@ -17,16 +17,36 @@ export type ContentEntry = {
   /** Linha de metadado em caixa-alta (ex.: ano · local). */
   metaKey: MessageKey;
   image?: ImageSlot;
+  /** Destino do card (spec 0012: só projetos e festivais/residências têm página de detalhe). */
+  href?: string;
+  /** Ano (não traduzido) e local: usados pela lista cronológica de exposições (YearList). */
+  year?: string;
+  placeKey?: MessageKey;
 };
 
 export type ListSectionId = "projects" | "exhibitions" | "festivals" | "books";
 
+// Slugs (URL, não traduzidos) conferem com PROJECT_DETAILS / RESIDENCY_DETAILS (teste de completude).
+const DETAIL_BASE: Partial<Record<ListSectionId, { path: string; slug: string }>> = {
+  projects: { path: "/projetos", slug: "projeto-exemplo" },
+  festivals: { path: "/festivais-e-residencias", slug: "residencia-exemplo" },
+};
+const EXHIBITION_YEARS = ["2025", "2024", "2022"];
+
 const entries = (section: ListSectionId): ContentEntry[] =>
-  [1, 2, 3].map((n) => ({
-    id: `${section}-${n}`,
-    titleKey: `content.${section}.${n}.title` as MessageKey,
-    metaKey: `content.${section}.${n}.meta` as MessageKey,
-  }));
+  [1, 2, 3].map((n) => {
+    const detail = DETAIL_BASE[section];
+    return {
+      id: `${section}-${n}`,
+      titleKey: `content.${section}.${n}.title` as MessageKey,
+      metaKey: `content.${section}.${n}.meta` as MessageKey,
+      ...(detail && { href: `${detail.path}/${detail.slug}-${n}` }),
+      ...(section === "exhibitions" && {
+        year: EXHIBITION_YEARS[n - 1],
+        placeKey: `content.exhibitions.${n}.place` as MessageKey,
+      }),
+    };
+  });
 
 export const CONTENT_SECTIONS: Record<ListSectionId, ContentEntry[]> = {
   projects: entries("projects"),

@@ -68,11 +68,14 @@ describe("faixa da newsletter (layout aprovado)", () => {
     expect(button.className).toContain("uppercase");
     expect(button.className).toContain("rounded-full");
     expect(button.className).toContain("shrink-0");
-    // A pílula (campo + botão) é o contêiner; o campo só arredonda o lado esquerdo.
+    // A pílula (ícone + campo + botão) é o contêiner; o ícone é irmão do campo (nunca sobreposto ao texto).
     const pill = row;
     expect(pill.className).toContain("rounded-full");
     expect(pill.className).toContain("bg-paper");
-    expect(input.className).toContain("rounded-l-full");
+    const icon = pill.querySelector("svg[aria-hidden='true']")!;
+    expect(icon.parentElement).toBe(pill);
+    expect(icon.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(input.className).toContain("bg-transparent");
   });
 
   it.each([

@@ -52,9 +52,11 @@ describe("LanguageSwitcher", () => {
         <LanguageSwitcher compact />
       </LanguageProvider>,
     );
-    const btn = screen.getByRole("button", { name: "Language: English" });
-    expect(btn).toHaveTextContent("EN");
-    expect(btn).not.toHaveTextContent("English");
+    // sem aria-label: o nome = sigla visível + texto só para leitores de tela (WCAG 2.5.3, rótulo no nome)
+    const btn = screen.getByRole("button", { name: /Language: English/ });
+    expect(btn).not.toHaveAttribute("aria-label");
+    expect(btn).toHaveTextContent(/^EN/);
+    expect(btn.querySelector(".sr-only")).toHaveTextContent("Language: English");
   });
 
   it("bandeiras são decorativas (aria-hidden) no gatilho e em cada item", async () => {

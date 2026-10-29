@@ -34,11 +34,18 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          // Sucesso em musgo e erro em destructive, sobre tintas do papel (tokens; ink sobre elas > 4,5:1).
+          "--success-bg": "color-mix(in oklch, var(--moss) 14%, var(--background))",
+          "--success-text": "var(--foreground)",
+          "--success-border": "var(--moss)",
+          "--error-bg": "color-mix(in oklch, var(--destructive) 10%, var(--background))",
+          "--error-text": "var(--foreground)",
+          "--error-border": "var(--destructive)",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast font-sans text-sm",
         },
       }}
       {...props}

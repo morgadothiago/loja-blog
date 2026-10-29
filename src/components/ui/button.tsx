@@ -7,7 +7,9 @@ const buttonVariantsRaw = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // Hover escurece (color-mix) em vez de clarear por opacidade: /80 derrubava o contraste do texto claro
+        // para ~2,7:1 com a terracota do tema (spec 0011).
+        default: "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklch,var(--primary),var(--foreground)_14%)]",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

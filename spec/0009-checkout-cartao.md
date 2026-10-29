@@ -1,12 +1,12 @@
 ---
 id: 0009
 title: Checkout nacional — cartão de crédito (à vista e parcelado até 12x) via formulário fornecido pelo adapter
-status: in-review
+status: approved
 layers: [front, back]
 owner: Thiago Morgado
 created: 2026-10-28
-approved_by:             # preenchido SOMENTE por humano
-approved_at:             # preenchido SOMENTE por humano
+approved_by: Thiago Morgado   # registrado pelo assistente a pedido expresso do humano ("registre minha aprovação da 0007, 0008 e 0009 com os defaults")
+approved_at: 2026-10-28
 ---
 
 # 0009 — Cartão de crédito

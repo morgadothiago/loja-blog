@@ -105,10 +105,10 @@ describe("overlay com letreiros", () => {
     expect(decodeURIComponent(within(en.dialog).getByRole("link", { name: "About" }).querySelector("img")!.getAttribute("src")!)).toContain("/en/about.png");
   });
 
-  it("hambúrguer em todas as larguras (sem lg:hidden) e sem navegação em linha", async () => {
+  it("spec 0014: a navegação em linha da barra só aparece em xl+ (hidden xl:flex)", async () => {
     await openMenu("pt-BR");
     expect(screen.queryByRole("button", { name: "Abrir menu" })).toBeNull(); // dialog aberto esconde o fundo
-    expect(document.querySelector("header nav")).toBeNull();
+    expect(document.querySelector("header nav")!.className).toMatch(/\bhidden\b.*\bxl:flex\b/);
   });
 
   it("fechar com o X (imagem decorativa, nome acessível do botão)", async () => {

@@ -1,53 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
-import { PlaceholderArt } from "@/components/home/placeholder-art";
-import { HOME_IMAGES } from "@/lib/home-images";
+import type { HomeStory } from "@/lib/content/home-stories";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-export type Story = {
-  id: string;
-  slug: string;
-  title: string;
-  coverUrl: string | null;
-  categoryName: string | null;
-  createdAt: Date;
-  /** Destino do card. Sem ele, `/blog/${slug}` (post real). Os cards de exemplo apontam para `/blog`. */
-  href?: string;
-};
+// Card de "Histórias recentes" (spec 0013, ref-3). Posição define só a estética: o 1º tem leve rotação (-1,5deg)
+// e o 2º desce 4rem em md+ (como na referência). O hover `wobble` já respeita prefers-reduced-motion.
+const EDGE = ["md:-rotate-[1.5deg]", "", ""] as const;
+const OFFSET = ["", "md:mt-16", ""] as const;
 
-const PLACEHOLDERS = ["card-a", "card-b", "card-c"] as const;
-// Proporções e recuos diferentes por posição (colagem, como no layout aprovado). Só estética:
-// o conteúdo do post não depende disso.
-const ASPECTS = ["aspect-[21/20]", "aspect-[4/3]", "aspect-[9/10]"] as const;
-const OFFSETS = ["mt-1 md:mt-3", "mt-6 md:mt-10", ""] as const;
-// Leve rotação (<= 1,5deg) só na imagem, como na referência; o 3º card também sobe um pouco.
-const TILTS = ["", "", "rotate-1"] as const;
-
-export function StoryCard({ story, index, locale }: { story: Story; index: number; locale: string }) {
-  const date = new Intl.DateTimeFormat(locale, { year: "numeric" }).format(story.createdAt);
-  // Capa do post vence; senão a capa de reserva do slot (HOME_IMAGES.stories); senão placeholder.
-  const cover = story.coverUrl ?? HOME_IMAGES.stories[index % 3]?.src;
-  const meta = [story.categoryName, date].filter(Boolean).join(" · ");
-
+export function StoryCard({ story, index, locale }: { story: HomeStory; index: number; locale: Locale }) {
   return (
-    <Link href={story.href ?? `/blog/${story.slug}`} className={cn("group block min-w-0 focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2", OFFSETS[index % 3])}>
-      <div className={cn("bg-muted relative w-full overflow-hidden", ASPECTS[index % 3], TILTS[index % 3])}>
-        {cover ? (
-          <Image
-            src={cover}
-            alt=""
-            fill
-            sizes="(min-width: 1440px) 450px, 33vw"
-            className="object-cover"
-          />
-        ) : (
-          <PlaceholderArt variant={PLACEHOLDERS[index % PLACEHOLDERS.length]} className="size-full" />
-        )}
+    <Link
+      href={story.href}
+      className={cn("wobble focus-visible:outline-ring block min-w-0 focus-visible:outline-2 focus-visible:outline-offset-4", OFFSET[index % 3])}
+    >
+      <div className={cn("bg-muted relative aspect-square w-full overflow-hidden", EDGE[index % 3])}>
+        <Image src={story.cover} alt={story.alt[locale]} fill sizes="(min-width: 1440px) 30rem, (min-width: 768px) 33vw, 100vw" className="object-cover" />
       </div>
-      <p className="text-muted-foreground mt-2 text-xs tracking-wide break-words uppercase lg:mt-3">{meta}</p>
-      <h3 className="font-sans group-hover:underline group-focus-visible:underline mt-1 line-clamp-3 text-sm font-normal break-words sm:text-base md:text-lg">
-        {story.title}
-      </h3>
+      <p className="text-muted-foreground mt-4 text-xs tracking-widest break-words uppercase">
+        {story.place[locale]} · {story.year}
+      </p>
+      <h3 className="mt-1 text-2xl break-words">{story.title}</h3>
     </Link>
   );
 }

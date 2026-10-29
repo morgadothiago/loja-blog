@@ -155,7 +155,7 @@ describe("rotas, nav e metadata", () => {
     }
     // Sobre não usa SectionPage (abre direto na foto); as demais montam SectionPage com o próprio id.
     if (id === "about") return;
-    const el = (id === "books" ? BooksPage : modules[id as keyof typeof modules].default)() as { props: { id: string } };
+    const el = (await (id === "books" ? BooksPage : modules[id as keyof typeof modules].default)()) as { props: { id: string } };
     expect(el.props.id).toBe(id);
   });
 

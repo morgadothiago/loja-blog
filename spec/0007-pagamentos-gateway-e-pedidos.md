@@ -1,12 +1,12 @@
 ---
 id: 0007
 title: Pagamentos nacionais (BRL) — camada de gateway plug and play, modelo de pagamento, webhook e reserva de estoque
-status: in-review
+status: approved
 layers: [back, db, infra]
 owner: Thiago Morgado
 created: 2026-10-28
-approved_by:             # preenchido SOMENTE por humano
-approved_at:             # preenchido SOMENTE por humano
+approved_by: Thiago Morgado   # registrado pelo assistente a pedido expresso do humano ("registre minha aprovação da 0007, 0008 e 0009 com os defaults")
+approved_at: 2026-10-28
 ---
 
 # 0007 — Camada de gateway, modelo de pagamento e webhook

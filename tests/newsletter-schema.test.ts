@@ -11,21 +11,26 @@ const CASES: [string, boolean][] = [
   [`${"a".repeat(250)}@b.com`, false],
 ];
 
-describe("schema yup (cliente)", () => {
+describe("schema Zod (cliente)", () => {
   const schema = createNewsletterSchema();
 
-  it.each(CASES)("%j -> válido=%s", async (email, ok) => {
-    expect(await schema.isValid({ email })).toBe(ok);
+  it.each(CASES)("%j -> válido=%s", (email, ok) => {
+    expect(schema.safeParse({ email }).success).toBe(ok);
   });
 
-  it("mensagens em pt-BR por padrão", async () => {
-    await expect(schema.validate({ email: "" })).rejects.toThrow("Informe seu e-mail.");
-    await expect(schema.validate({ email: "abc" })).rejects.toThrow("Digite um e-mail válido");
+  const first = (s: ReturnType<typeof createNewsletterSchema>, email: string) => {
+    const r = s.safeParse({ email });
+    return r.success ? "" : r.error.issues[0].message;
+  };
+
+  it("mensagens em pt-BR por padrão", () => {
+    expect(first(schema, "")).toBe("Informe seu e-mail.");
+    expect(first(schema, "abc")).toContain("Digite um e-mail válido");
   });
 
-  it("usa o idioma recebido", async () => {
+  it("usa o idioma recebido", () => {
     const en = createNewsletterSchema((k) => (k === "newsletter.error.required" ? "Enter your email." : k));
-    await expect(en.validate({ email: "" })).rejects.toThrow("Enter your email.");
+    expect(first(en, "")).toBe("Enter your email.");
   });
 });
 

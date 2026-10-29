@@ -13,9 +13,9 @@ vi.mock("@/components/home/home-image", () => ({
 }));
 
 import { HomeBanner } from "@/components/home/home-banner";
-import { HomeFeature } from "@/components/home/home-feature";
+import { HomeActivism } from "@/components/home/home-activism";
 import { HomeFooter } from "@/components/home/home-footer";
-import { HomeHero } from "@/components/home/home-hero";
+import { HomeIntro } from "@/components/home/home-intro";
 import { NewsletterBand } from "@/components/home/newsletter-band";
 import { RecentStories } from "@/components/home/recent-stories";
 
@@ -33,10 +33,10 @@ describe("largura máxima única: fundo full-bleed + conteúdo em .page-width", 
   });
 
   it.each([
-    ["hero", () => HomeHero()],
+    ["intro", () => HomeIntro()],
     ["banner", () => HomeBanner()],
-    ["histórias", () => RecentStories({ stories: [] })],
-    ["destaque", () => HomeFeature()],
+    ["histórias", () => RecentStories()],
+    ["ativismo", () => HomeActivism()],
     ["newsletter", () => NewsletterBand()],
     ["rodapé", () => HomeFooter()],
   ])("%s: conteúdo em .page-width e fundo/seção sem max-w próprio", async (_n, make) => {
@@ -50,14 +50,12 @@ describe("largura máxima única: fundo full-bleed + conteúdo em .page-width", 
     expect(container.innerHTML).not.toMatch(/content-fit|site-container|site-gutter|max-w-site/);
   });
 
-  it("hero: imagem única w-full dentro de page-width, aspect 11/6 constante, sem altura de janela; sizes coerente com o teto", async () => {
-    const { container } = render(await HomeHero());
+  it("intro: mural dentro de page-width, proporção 4:5 reservada e sem altura de janela", async () => {
+    const { container } = render(await HomeIntro());
     const slot = container.querySelector("[data-testid='slot']") as HTMLElement;
     expect(slot.closest(".page-width")).not.toBeNull();
-    expect(slot.className).toContain("aspect-[11/6]");
-    expect(slot.className).toContain("w-full");
-    expect(slot.className).not.toMatch(/max-w-|max-h-|svh|content-fit|md:aspect|lg:aspect/);
-    expect(slot).toHaveAttribute("data-sizes", "(min-width: 1440px) 1400px, 100vw");
+    expect(slot.className).toContain("aspect-[4/5]");
+    expect(slot.className).not.toMatch(/svh|vh|max-h-/);
   });
 
   it("nenhuma medida em px nas classes de layout da home (rem, cqw, %, escala Tailwind)", () => {
@@ -69,9 +67,9 @@ describe("largura máxima única: fundo full-bleed + conteúdo em .page-width", 
     }
   });
 
-  it("proibições nos componentes da home e das seções (svh, max-h, clamp, fontes/larguras xl/2xl, frações, content-fit)", () => {
+  it("proibições nos componentes da home e das seções (svh, max-h, fontes/larguras xl/2xl, frações, content-fit)", () => {
     const dirs = ["../src/components/home", "../src/components/sections"];
-    const forbidden = /svh|\bvh\b|max-h-\[|clamp\(|content-fit|\b(2xl|xl):(text-|w-|max-w|gap|py|pt|pb)|\blg:w-\d+\/\d+|aspect-\[(21\/9|16\/7)\]|min-width: 1792px/;
+    const forbidden = /svh|\bvh\b|max-h-\[|content-fit|\b(2xl|xl):(text-|w-|max-w|gap|py|pt|pb)|\blg:w-\d+\/\d+|aspect-\[(21\/9|16\/7)\]|min-width: 1792px/;
     for (const dir of dirs) {
       for (const file of readdirSync(path.resolve(import.meta.dirname, dir))) {
         const src = readFileSync(path.resolve(import.meta.dirname, dir, file), "utf8");
@@ -80,42 +78,25 @@ describe("largura máxima única: fundo full-bleed + conteúdo em .page-width", 
     }
   });
 
-  it("tipografia com teto: hero text-3xl, títulos de seção text-4xl, card text-lg, destaque text-3xl", () => {
+  it("tipografia (0013): h1 em clamp() com teto de 8.5rem, títulos de seção 4xl/6xl, card 2xl, frase 3xl/4xl", () => {
     const read = (f: string) => readFileSync(path.resolve(import.meta.dirname, f), "utf8");
-    expect(read("../src/components/home/home-hero.tsx")).toMatch(/lg:text-3xl/);
-    expect(read("../src/components/home/recent-stories.tsx")).toMatch(/text-3xl sm:text-4xl/);
-    expect(read("../src/components/home/story-card.tsx")).toMatch(/md:text-lg/);
-    expect(read("../src/components/home/home-feature.tsx")).toMatch(/md:text-3xl/);
-  });
-
-  it("destaque: medida de leitura limitada só no texto (ch)", async () => {
-    const { container } = render(await HomeFeature());
-    expect(container.querySelector("p.max-w-\\[40ch\\]")).not.toBeNull();
+    expect(read("../src/components/home/home-intro.tsx")).toMatch(/lg:text-\[clamp\(4\.5rem,9vw,8\.5rem\)\]/);
+    expect(read("../src/components/home/recent-stories.tsx")).toMatch(/text-4xl md:text-6xl/);
+    expect(read("../src/components/home/story-card.tsx")).toMatch(/text-2xl/);
+    expect(read("../src/components/home/home-activism.tsx")).toMatch(/text-3xl leading-snug md:text-4xl/);
   });
 });
 
-describe("espaçamentos do modelo aprovado (base mobile, escala Tailwind)", () => {
-  it("hero, banner, histórias, destaque, faixa amarela e rodapé", async () => {
-    const hero = render(await HomeHero()).container;
-    expect(hero.querySelector(".page-width")!.className).toMatch(/\bpt-0\b.*\bpb-10\b/);
-    expect(hero.querySelector(".space-y-1")).not.toBeNull();
-
-    const banner = render(await HomeBanner()).container;
-    expect(banner.querySelector("figure")!.className).toMatch(/\bpt-5\b.*\bpb-0\b/);
-    expect(banner.querySelector("figcaption")!.className).toContain("mt-1");
-
-    const stories = render(await RecentStories({ stories: [] })).container;
-    expect(stories.querySelector("section")!.className).toMatch(/\bpt-5\b.*\bpb-12\b/);
-
-    const feature = render(await HomeFeature()).container;
-    expect(feature.querySelector("section")!.className).toMatch(/\bpt-0\b.*\bpb-6\b/);
-    expect(feature.querySelector(".page-width")!.className).toContain("gap-5");
-
+describe("ritmo vertical da 0013 (escala Tailwind, em rem)", () => {
+  it("seções separadas por mt-20/28 (histórias) e mt-24/32 (ativismo); rodapé com borda superior e page-width", async () => {
+    const stories = render(await RecentStories()).container;
+    expect(stories.querySelector("section")!.className).toMatch(/\bmt-20\b.*\bmd:mt-28\b/);
+    const act = render(await HomeActivism()).container;
+    expect(act.querySelector("section")!.className).toMatch(/\bmt-24\b.*\bmd:mt-32\b/);
     const band = render(await NewsletterBand()).container;
     expect(band.querySelector(".page-width")!.className).toContain("py-3");
-
     const footer = render(await HomeFooter()).container;
-    expect(footer.querySelector("footer")!.className).toContain("py-2");
-    expect(footer.querySelector("footer")!.className).toContain("page-width");
+    expect(footer.querySelector("footer")!.className).toContain("border-t");
+    expect(footer.querySelector(".page-width")).not.toBeNull();
   });
 });

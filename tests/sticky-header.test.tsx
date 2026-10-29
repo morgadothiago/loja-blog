@@ -28,12 +28,12 @@ beforeEach(() => {
     takeRecords() { return []; }
   }
   window.IntersectionObserver = FakeIO as unknown as typeof IntersectionObserver;
-  document.body.insertAdjacentHTML("beforeend", '<section id="home-hero"></section>');
+  document.body.insertAdjacentHTML("beforeend", '<section id="home-top"></section>');
 });
 
 afterEach(() => {
   window.IntersectionObserver = OriginalIO;
-  document.getElementById("home-hero")?.remove();
+  document.getElementById("home-top")?.remove();
 });
 
 const header = () => document.querySelector("header") as HTMLElement;
@@ -41,7 +41,7 @@ const scrollTo = (heroVisible: boolean) => act(() => callbacks.forEach((cb) => c
 
 describe("AppHeader fixo + troca de cor", () => {
   it("sticky top-0 com z-index abaixo do Sheet e transição respeitando reduced motion", () => {
-    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-hero" />);
+    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-top" />);
     expect(header().className).toMatch(/\bsticky\b/);
     expect(header().className).toMatch(/\btop-0\b/);
     expect(header().className).toMatch(/\bz-40\b/); // Sheet usa z-50
@@ -54,46 +54,47 @@ describe("AppHeader fixo + troca de cor", () => {
     expect(header().className).not.toMatch(/\bsticky\b/);
   });
 
-  it("começa bege (estado do hero, sem flash) e a borda já reserva espaço", () => {
-    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-hero" />);
-    expect(header().className).toContain("bg-secondary");
+  it("começa transparente sobre o papel (spec 0013, sem flash) e a borda já reserva espaço", () => {
+    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-top" />);
+    expect(header().className).toContain("bg-transparent");
     expect(header().className).toContain("border-b");
-    expect(header().className).not.toContain("bg-card");
+    expect(header().className).not.toContain("bg-background");
   });
 
-  it("branco (token card) com sombra ao sair do hero e volta ao bege ao rolar para cima", () => {
-    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-hero" />);
+  it("bg-background com borda e sombra ao rolar e volta a transparente ao subir", () => {
+    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-top" />);
     scrollTo(false);
-    expect(header().className).toContain("bg-card");
+    expect(header().className).toContain("bg-background");
+    expect(header().className).toContain("border-border");
     expect(header().className).toContain("shadow-sm");
-    expect(header().className).not.toContain("bg-secondary");
+    expect(header().className).not.toContain("bg-transparent");
     scrollTo(true);
-    expect(header().className).toContain("bg-secondary");
-    expect(header().className).not.toContain("bg-card");
+    expect(header().className).toContain("bg-transparent");
+    expect(header().className).not.toContain("bg-background");
   });
 
   it("página aberta já rolada: o 1º callback do observer define o estado certo", () => {
-    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-hero" />);
+    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-top" />);
     scrollTo(false);
-    expect(header().className).toContain("bg-card");
+    expect(header().className).toContain("bg-background");
   });
 
   it("observa com rootMargin que desconta a altura do header (59px)", () => {
-    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-hero" />);
+    render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-top" />);
     expect(options.map((o) => o.rootMargin)).toContain("-59px 0px 0px 0px");
   });
 
-  it("sem solidAfterId (ou alvo inexistente) não observa nada e fica bege", () => {
+  it("sem solidAfterId (ou alvo inexistente) não observa nada e fica transparente", () => {
     render(<AppHeader brand="X" items={[]} labels={labels} sticky />);
     expect(options.map((o) => o.rootMargin)).not.toContain("-59px 0px 0px 0px");
-    expect(header().className).toContain("bg-secondary");
+    expect(header().className).toContain("bg-transparent");
   });
 
-  it("menu abre com o header branco, sem erros", async () => {
+  it("menu abre com o header sólido, sem erros", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const user = userEvent.setup();
-      render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-hero" />);
+      render(<AppHeader brand="X" items={[]} labels={labels} sticky solidAfterId="home-top" />);
       scrollTo(false);
       await user.click(screen.getByRole("button", { name: "Abrir menu" }));
       expect(await screen.findByRole("dialog")).toBeInTheDocument();

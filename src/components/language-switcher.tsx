@@ -36,14 +36,18 @@ export function LanguageSwitcher({
         render={
           <Button
             variant="outline"
-            aria-label={`${t("language.label")}: ${LOCALE_LABELS[locale]}`}
+            // Compacto: sem aria-label; o nome vem do texto visível (sigla) + texto só para leitores de tela (WCAG 2.5.3).
+            aria-label={compact ? undefined : `${t("language.label")}: ${LOCALE_LABELS[locale]}`}
             className={cn("bg-secondary border-ink/30 gap-2 rounded-full px-3 text-base", className)}
           />
         }
       >
         <Flag locale={locale} />
         {compact ? (
-          <span aria-hidden="true" className="font-medium tracking-wider">{LOCALE_CODES[locale]}</span>
+          <>
+            <span className="font-medium tracking-wider">{LOCALE_CODES[locale]}</span>
+            <span className="sr-only">{`${t("language.label")}: ${LOCALE_LABELS[locale]}`}</span>
+          </>
         ) : (
           <span>{LOCALE_LABELS[locale]}</span>
         )}

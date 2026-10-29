@@ -2,19 +2,20 @@ import { HomeImage } from "@/components/home/home-image";
 import { getT } from "@/lib/i18n-server";
 import { HOME_IMAGES } from "@/lib/home-images";
 
+// Mural largo (spec 0013, ref-2): 2:1 no mobile e 5:2 a partir de md, dentro de page-width (nunca por altura de
+// janela, que escondia o mural no mobile). Legenda sempre visível, >= 0,75rem.
 export async function HomeBanner() {
   const { t } = await getT();
   return (
-    <figure className="w-full pt-5 pb-0 md:pt-6 lg:pt-8">
-      {/* Faixa 2:1 no mobile (como na referência) e 3:1 em md+, dentro da largura máxima do conteúdo (page-width). */}
+    <figure className="w-full">
       <div className="page-width">
         <HomeImage
           slot={HOME_IMAGES.banner}
           placeholder="banner"
           sizes="(min-width: 1440px) 1400px, 100vw"
-          className="aspect-[2/1] w-full md:aspect-[3/1]"
+          className="aspect-[2/1] w-full md:aspect-[5/2]"
         />
-        <figcaption className="text-muted-foreground mt-1 text-xs">{t("home.banner.caption")}</figcaption>
+        <figcaption className="text-muted-foreground mt-3 text-xs">{t("home.banner.caption")}</figcaption>
       </div>
     </figure>
   );

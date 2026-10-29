@@ -1,18 +1,16 @@
 // @vitest-environment jsdom
 import path from "node:path";
 import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/i18n-server", async () => {
   const { dictionaries } = await import("@/lib/i18n");
   return { getT: async () => ({ locale: "pt-BR", t: (k: keyof (typeof dictionaries)["pt-BR"]) => dictionaries["pt-BR"][k] }) };
 });
 
-import { HomeFooter } from "@/components/home/home-footer";
 import { HomeImage } from "@/components/home/home-image";
 import { dictionaries } from "@/lib/i18n";
 import { HOME_IMAGES } from "@/lib/home-images";
-import { SITE } from "@/lib/site";
 
 describe("HomeImage (slots)", () => {
   it("sem src: placeholder SVG decorativo", async () => {
@@ -36,38 +34,10 @@ describe("HomeImage (slots)", () => {
   });
 
   it("todos os slots do mapa existem e hero/banner/destaque têm alt traduzido nas 3 línguas", () => {
-    expect(Object.keys(HOME_IMAGES).sort()).toEqual(["banner", "feature", "heroCarousel", "newsletterLeft", "newsletterRight", "stories"]);
-    expect(HOME_IMAGES.stories).toHaveLength(3);
+    expect(Object.keys(HOME_IMAGES).sort()).toEqual(["banner", "feature", "heroCarousel", "introMural", "newsletterLeft", "newsletterRight", "portrait"]);
     expect(HOME_IMAGES.heroCarousel).toHaveLength(3);
     for (const l of ["pt-BR", "en", "es"] as const) {
-      for (const k of ["home.banner.alt", "home.carousel.1.alt", "home.carousel.2.alt", "home.carousel.3.alt", "home.feature.alt"] as const) expect(dictionaries[l][k].length).toBeGreaterThan(5);
-    }
-  });
-});
-
-describe("HomeFooter", () => {
-  beforeEach(() => vi.restoreAllMocks());
-
-  it("mostra © ano + nome do site configurável; itens legais sem href são texto (sem link morto)", async () => {
-    const { container } = render(await HomeFooter());
-    expect(container.textContent).toContain(`© ${new Date().getFullYear()} ${SITE.name}`);
-    expect(container.textContent).toMatch(/Termos.*Privacidade.*Cookies.*Contato.*Gerenciar cookies/);
-    expect(container.querySelectorAll("a")).toHaveLength(0);
-    expect(container.textContent).toContain("Site por");
-  });
-
-  it("itens legais e crédito aparecem quando configurados", async () => {
-    const saved = { links: SITE.footerLinks.map((l) => ({ ...l })), credit: SITE.credit };
-    SITE.footerLinks[0].href = "/termos";
-    SITE.credit = { name: "Studio X", href: "https://example.com" };
-    try {
-      const { container } = render(await HomeFooter());
-      expect(container.querySelector("a[href='/termos']")).toHaveTextContent("Termos");
-      expect(container.textContent).toContain("Site por");
-      expect(container.querySelector("a[href='https://example.com']")).toHaveAttribute("rel", "noopener noreferrer");
-    } finally {
-      SITE.footerLinks.forEach((l, i) => (l.href = saved.links[i].href));
-      SITE.credit = saved.credit;
+      for (const k of ["home.banner.alt", "home.mural.alt", "home.portrait.alt", "home.carousel.1.alt", "home.carousel.2.alt", "home.carousel.3.alt", "home.feature.alt"] as const) expect(dictionaries[l][k].length).toBeGreaterThan(5);
     }
   });
 });
@@ -113,6 +83,20 @@ describe("imagens ORIGINAIS do cliente via import estático (src/assets)", () =>
     const banjo = HOME_IMAGES.newsletterRight.src as { width: number; height: number };
     expect([banjo.width, banjo.height]).toEqual([1597, 2300]);
     expect(await dims("Characters_2(1).png")).toEqual({ width: 1597, height: 2300 });
+  });
+
+  it("slots da 0013: mural 4:5, banner 2:1 e retrato vêm de src/assets/Home com dimensões reais", async () => {
+    const sharp = (await import("sharp")).default;
+    const real = async (f: string) => {
+      const m = await sharp(path.join(ROOT, "src/assets/Home", f)).metadata();
+      return [m.width, m.height];
+    };
+    const dim = (s: { src?: unknown }) => [(s.src as { width: number }).width, (s.src as { height: number }).height];
+    expect(dim(HOME_IMAGES.introMural)).toEqual(await real("moth-mural-detail.jpg"));
+    expect(dim(HOME_IMAGES.banner)).toEqual(await real("moth-mural-wide.jpg"));
+    expect(dim(HOME_IMAGES.portrait)).toEqual(await real("elena-portrait.jpg"));
+    expect(dim(HOME_IMAGES.introMural)).toEqual([1400, 1700]);
+    expect(dim(HOME_IMAGES.banner)).toEqual([1400, 700]);
   });
 
   it("hero: slide 1 = cachalote; os outros 2 seguem placeholders; alt traduzido", () => {

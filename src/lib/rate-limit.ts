@@ -2,12 +2,14 @@ import { db } from "@/lib/db";
 
 // Rate limit em Postgres (funciona com várias instâncias). Janela deslizante de 15 min.
 export const WINDOW_MS = 15 * 60 * 1000;
-export const LIMITS = { email: 5, ip: 20, registerIp: 20 } as const;
+export const LIMITS = { email: 5, ip: 20, registerIp: 20, contactIp: 5 } as const;
 
 export const attemptKeys = {
   email: (email: string) => `email:${email}`,
   ip: (ip: string) => `ip:${ip}`,
   registerIp: (ip: string) => `register-ip:${ip}`,
+  // Contato (spec 0012): reaproveita a tabela AuthAttempt com prefixo próprio (dívida: nome da tabela).
+  contactIp: (ip: string) => `contact-ip:${ip}`,
 };
 
 // true = bloqueado (já atingiu o limite de falhas dentro da janela).

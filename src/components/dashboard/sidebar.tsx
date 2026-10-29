@@ -7,6 +7,7 @@ const links = [
   { href: "/dashboard/produtos", label: "Produtos" },
   { href: "/dashboard/posts", label: "Posts do blog" },
   { href: "/dashboard/categorias", label: "Categorias" },
+  { href: "/dashboard/mensagens", label: "Mensagens" },
 ];
 
 export function Sidebar({ userName }: { userName?: string | null }) {

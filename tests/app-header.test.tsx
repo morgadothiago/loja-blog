@@ -105,6 +105,47 @@ async function waitForMenuClosed() {
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 }
 
+describe("AppHeader: gatilho com texto 'menu' (spec 0013)", () => {
+  it("palavra visível manuscrita terracota, sem <img>/<svg>, nome acessível contém o texto, alvo >= 2,75rem e aria-expanded alterna", async () => {
+    const user = userEvent.setup();
+    render(<AppHeader brand="X" items={items} labels={labels} menuLabel="menu" overlayOnly />);
+    const button = screen.getByRole("button", { name: "Abrir menu" });
+    expect(button).toHaveTextContent("menu");
+    expect(button.getAttribute("aria-label")!.toLowerCase()).toContain("menu"); // WCAG 2.5.3
+    expect(button).toHaveClass("font-hand", "text-primary", "h-11", "min-w-11");
+    expect(button.querySelector("img, svg")).toBeNull();
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button.className).not.toContain("lg:hidden");
+    await user.click(button);
+    await screen.findByRole("dialog");
+    expect(document.querySelector("[aria-haspopup='dialog']")).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("menuLabel vence menuImage (sem hambúrguer em PNG)", () => {
+    render(<AppHeader brand="X" items={items} labels={labels} menuLabel="menu" menuImage={{ src: "/x.png", width: 2, height: 2 }} overlayOnly />);
+    expect(screen.getByRole("button", { name: "Abrir menu" }).querySelector("img")).toBeNull();
+  });
+
+  it("grupos (ex.: Práticas): título e links no overlay, com aria-current e fechamento ao navegar", async () => {
+    const user = userEvent.setup();
+    render(
+      <AppHeader
+        brand="X"
+        items={items}
+        labels={labels}
+        menuLabel="menu"
+        overlayOnly
+        groups={[{ label: "Práticas", items: [{ href: "/praticas/desenho", label: "Desenho" }, { href: "/praticas/colagem", label: "Colagem" }] }]}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Abrir menu" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Práticas")).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Desenho" })).toHaveAttribute("href", "/praticas/desenho");
+    expect(within(dialog).getByRole("link", { name: "Colagem" })).toHaveClass("min-h-11");
+  });
+});
+
 describe("AppHeader: botão do menu em imagem (hamburger)", () => {
   const menuImage = { src: "/images/menu/hamburger-ink.png", width: 200, height: 184 };
 

@@ -96,16 +96,24 @@ describe("HomeHeader (sessão no servidor)", () => {
 });
 
 describe("HomeHeader (esqueleto da referência)", () => {
-  it("na barra só há logo e hambúrguer (carrinho fica dentro do menu)", async () => {
+  it("na barra só há logo e a palavra menu (carrinho fica dentro do menu)", async () => {
     authMock.mockResolvedValue(null);
     render(
       <LanguageProvider initialLocale="pt-BR">
         <CartProvider>{await HomeHeader()}</CartProvider>
       </LanguageProvider>,
     );
-    expect(screen.queryByRole("link", { name: /Carrinho/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "Abrir menu" })).toBeInTheDocument();
+    // spec 0014: em xl+ o carrinho fica também na barra (escondido por CSS abaixo disso); no overlay segue presente
+    const trigger = screen.getByRole("button", { name: "Abrir menu" });
+    expect(trigger).toHaveTextContent("menu");
+    expect(trigger.querySelector("img")).toBeNull(); // sem hambúrguer em PNG
     await userEvent.setup().click(screen.getByRole("button", { name: "Abrir menu" }));
-    expect(within(await screen.findByRole("dialog")).getByRole("link", { name: /Carrinho/ })).toHaveAttribute("href", "/carrinho");
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("link", { name: /Carrinho/ })).toHaveAttribute("href", "/carrinho");
+    // sublista "Práticas" (3 rotas da 0012), em texto
+    expect(within(dialog).getByText("Práticas")).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Desenho" })).toHaveAttribute("href", "/praticas/desenho");
+    expect(within(dialog).getByRole("link", { name: "Cerâmica" })).toHaveAttribute("href", "/praticas/ceramica");
+    expect(within(dialog).getByRole("link", { name: "Colagem" })).toHaveAttribute("href", "/praticas/colagem");
   });
 });
