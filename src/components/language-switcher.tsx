@@ -11,10 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/contexts/language-context";
-import { LOCALES, LOCALE_LABELS, isLocale, type Locale } from "@/lib/i18n";
+import { LOCALES, LOCALE_LABELS, isLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-
-const LOCALE_CODES: Record<Locale, string> = { "pt-BR": "PT", en: "EN", es: "ES" };
 
 // Seletor de idioma: gatilho mostra bandeira + nome; a lista mostra cada idioma no próprio
 // idioma, com marca do atual. Persistência (cookie + contexto) segue em setLocale.
@@ -35,23 +33,26 @@ export function LanguageSwitcher({
       <DropdownMenuTrigger
         render={
           <Button
-            variant="outline"
-            // Compacto: sem aria-label; o nome vem do texto visível (sigla) + texto só para leitores de tela (WCAG 2.5.3).
+            // Compacto: só a bandeira do idioma atual, sem fundo nem borda. O nome acessível vem do texto só para leitores de tela.
+            variant={compact ? "ghost" : "outline"}
             aria-label={compact ? undefined : `${t("language.label")}: ${LOCALE_LABELS[locale]}`}
-            className={cn("bg-secondary border-ink/30 gap-2 rounded-full px-3 text-base", className)}
+            className={cn(
+              "gap-2 rounded-full px-3 text-base",
+              !compact && "bg-secondary border-ink/30",
+              className,
+            )}
           />
         }
       >
         <Flag locale={locale} />
         {compact ? (
-          <>
-            <span className="font-medium tracking-wider">{LOCALE_CODES[locale]}</span>
-            <span className="sr-only">{`${t("language.label")}: ${LOCALE_LABELS[locale]}`}</span>
-          </>
+          <span className="sr-only">{`${t("language.label")}: ${LOCALE_LABELS[locale]}`}</span>
         ) : (
-          <span>{LOCALE_LABELS[locale]}</span>
+          <>
+            <span>{LOCALE_LABELS[locale]}</span>
+            <ChevronDownIcon aria-hidden="true" className="opacity-70" />
+          </>
         )}
-        <ChevronDownIcon aria-hidden="true" className="opacity-70" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-auto min-w-52 p-1.5">
         <DropdownMenuRadioGroup

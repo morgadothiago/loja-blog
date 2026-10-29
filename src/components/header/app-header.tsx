@@ -11,6 +11,7 @@ import { useSolidAfter } from "@/components/header/use-solid-after";
 import { ChevronDownIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { UserMenu, UserPanel, type UserMenuData } from "@/components/user-menu";
 
 // Altura do conteúdo do header (h-[3.625rem]) + 1px da borda.
 const HEADER_HEIGHT_PX = 59;
@@ -39,6 +40,8 @@ export type AppHeaderProps = {
   actions?: React.ReactNode;
   /** Botão de sessão (Entrar / Ir para o dashboard), decidido pelo chamador no servidor. */
   cta?: HeaderItem;
+  /** Usuário logado: troca o botão de sessão por um dropdown (barra xl+) e por uma lista no rodapé do Sheet. */
+  user?: UserMenuData;
   /** Ações só no desktop (ex.: idioma, login). */
   desktopActions?: React.ReactNode;
   /** Slot no topo do Sheet, entre o título e o botão fechar (ex.: seletor de idioma compacto). */
@@ -66,7 +69,7 @@ export type AppHeaderProps = {
 
 // Cabeçalho reutilizável (~58px): marca à esquerda, menu à direita. Mobile: gatilho
 // hambúrguer abre um Sheet de tela cheia (foco preso, Esc e aria-modal vêm do base-ui).
-export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktopActions, menuHeaderActions, menuFooter, sticky, solidAfterId, overlayOnly, menuImage, menuLabel, groups, closeImage, labels }: AppHeaderProps) {
+export function AppHeader({ brand, brandHref = "/", items, cta, user, actions, desktopActions, menuHeaderActions, menuFooter, sticky, solidAfterId, overlayOnly, menuImage, menuLabel, groups, closeImage, labels }: AppHeaderProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const solid = useSolidAfter(solidAfterId, HEADER_HEIGHT_PX);
@@ -117,14 +120,17 @@ export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktop
 
         <div className="ml-auto flex items-center gap-1">
           {actions}
-          {!overlayOnly && (desktopActions || cta) && (
+          {!overlayOnly && (desktopActions || cta || user) && (
             <div className="hidden items-center gap-2 xl:flex">
               {desktopActions}
-              {cta && (
-                // Só o ícone na barra (largura); o texto segue como nome acessível e dica.
-                <Link href={cta.href} title={cta.label} className={buttonVariants({ variant: "outline", className: "bg-secondary border-ink/30 size-11 rounded-full" })}>
+              {user ? (
+                // Logado: botão de usuário (ícone) com dropdown no lugar de "Entrar".
+                <UserMenu {...user} />
+              ) : cta && (
+                // Ícone + texto, sem fundo nem borda (o texto visível é o nome acessível).
+                <Link href={cta.href} className={buttonVariants({ variant: "ghost", className: "h-11 gap-2 rounded-full px-3 text-base" })}>
                   {cta.icon}
-                  <span className="sr-only">{cta.label}</span>
+                  <span>{cta.label}</span>
                 </Link>
               )}
             </div>
@@ -249,9 +255,11 @@ export function AppHeader({ brand, brandHref = "/", items, cta, actions, desktop
                 </ul>
               </nav>
               {/* Rodapé fixo: botão de sessão + carrinho */}
-              {(cta || menuFooter) && (
+              {(cta || user || menuFooter) && (
                 <div className="px-fluid flex shrink-0 flex-col gap-3 border-t py-4">
-                  {cta && (
+                  {user ? (
+                    <UserPanel {...user} onNavigate={() => setOpen(false)} />
+                  ) : cta && (
                     <Link
                       href={cta.href}
                       onClick={() => setOpen(false)}

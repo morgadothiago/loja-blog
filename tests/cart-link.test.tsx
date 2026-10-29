@@ -26,7 +26,7 @@ describe("CartLink", () => {
     expect(link.querySelector("svg[aria-hidden='true']")).not.toBeNull();
   });
 
-  it("pílula idêntica ao idioma compacto: mesmas classes finais, sem sobras da variante (twMerge)", () => {
+  it("pílula alinhada ao idioma compacto: mesma altura e forma, sem sobras da variante (twMerge)", () => {
     render(
       <LanguageProvider initialLocale="pt-BR">
         <CartProvider>
@@ -39,10 +39,13 @@ describe("CartLink", () => {
     const cart = screen.getByRole("link", { name: "Carrinho" });
     for (const el of [lang, cart]) {
       const classes = el.className.split(/\s+/);
-      for (const c of ["bg-secondary", "border-ink/30", "h-11", "rounded-full"]) expect(classes, c).toContain(c);
+      for (const c of ["h-11", "rounded-full"]) expect(classes, c).toContain(c);
       // classes da variante/tamanho que devem ter sido sobrescritas
-      for (const c of ["rounded-lg", "h-8", "border-border", "bg-background"]) expect(classes, c).not.toContain(c);
+      for (const c of ["rounded-lg", "h-8"]) expect(classes, c).not.toContain(c);
     }
+    // o carrinho mantém fundo e borda; o idioma compacto não tem (decisão de design do header)
+    expect(cart.className.split(/\s+/)).toEqual(expect.arrayContaining(["bg-secondary", "border-ink/30"]));
+    expect(lang.className.split(/\s+/)).not.toContain("bg-secondary");
     // vazio: círculo do tamanho do alvo (w-11); com itens vira pílula (testado abaixo)
     expect(cart.className.split(/\s+/)).toContain("w-11");
   });

@@ -7,7 +7,8 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@/contexts/auth-context";
 import { useCart } from "@/contexts/cart-context";
 import { useI18n } from "@/contexts/language-context";
-import { getAuthCta } from "@/lib/auth-cta";
+import { UserMenu } from "@/components/user-menu";
+import { getAuthCta, getUserMenuItems } from "@/lib/auth-cta";
 import { SITE } from "@/lib/site";
 
 export function SiteHeader() {
@@ -32,13 +33,19 @@ export function SiteHeader() {
               </span>
             )}
           </Link>
-          <Link
-            href={cta.href}
-            className={buttonVariants({ size: "sm", variant: isAuthenticated ? "default" : "outline" })}
-          >
-            <AuthCtaIconView name={cta.icon} className="size-3.5" />
-            {cta.label}
-          </Link>
+          {isAuthenticated ? (
+            <UserMenu
+              name={user?.name}
+              email={user?.email}
+              items={getUserMenuItems(user?.role, t)}
+              labels={{ trigger: t("nav.userMenu"), logout: t("nav.logout") }}
+            />
+          ) : (
+            <Link href={cta.href} className={buttonVariants({ size: "sm", variant: "outline" })}>
+              <AuthCtaIconView name={cta.icon} className="size-3.5" />
+              {cta.label}
+            </Link>
+          )}
         </div>
       </nav>
     </header>

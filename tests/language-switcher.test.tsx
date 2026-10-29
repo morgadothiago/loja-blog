@@ -46,17 +46,21 @@ describe("LanguageSwitcher", () => {
     expect(screen.getByRole("menuitemradio", { name: /English/ })).not.toBeChecked();
   });
 
-  it("modo compacto: bandeira + sigla, nome acessível completo", () => {
+  it("modo compacto: só a bandeira do idioma atual, sem fundo nem borda, nome acessível completo", () => {
     render(
       <LanguageProvider initialLocale="en">
         <LanguageSwitcher compact />
       </LanguageProvider>,
     );
-    // sem aria-label: o nome = sigla visível + texto só para leitores de tela (WCAG 2.5.3, rótulo no nome)
+    // sem aria-label: o nome vem do texto só para leitores de tela
     const btn = screen.getByRole("button", { name: /Language: English/ });
     expect(btn).not.toHaveAttribute("aria-label");
-    expect(btn).toHaveTextContent(/^EN/);
+    expect(btn.textContent).toBe("Language: English");
     expect(btn.querySelector(".sr-only")).toHaveTextContent("Language: English");
+    expect(btn.querySelector("svg, img, [data-flag]")).not.toBeNull();
+    const classes = btn.className.split(/\s+/);
+    expect(classes).not.toContain("bg-secondary");
+    expect(classes).not.toContain("border-ink/30");
   });
 
   it("bandeiras são decorativas (aria-hidden) no gatilho e em cada item", async () => {

@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/header/app-header";
 import { AuthCtaIconView } from "@/components/auth-cta-icon";
 import { CartLink } from "@/components/home/cart-link";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { getAuthCta } from "@/lib/auth-cta";
+import { getAuthCta, getUserMenuItems } from "@/lib/auth-cta";
 import { getT } from "@/lib/i18n-server";
 import { PRACTICES, practiceSlug } from "@/lib/content/details";
 import { MENU_CLOSE_IMAGE, MENU_ITEMS } from "@/lib/nav";
@@ -38,6 +38,17 @@ export async function HomeHeader() {
       sticky
       solidAfterId="home-top"
       cta={{ href: cta.href, label: cta.label, icon: <AuthCtaIconView name={cta.icon} /> }}
+      // Logado: o dropdown de usuário substitui o "Entrar" (papel e itens decididos aqui, no servidor).
+      user={
+        session?.user
+          ? {
+              name: session.user.name,
+              email: session.user.email,
+              items: getUserMenuItems(session.user.role, t),
+              labels: { trigger: t("nav.userMenu"), logout: t("nav.logout") },
+            }
+          : undefined
+      }
       labels={{ openMenu: t("menu.open"), closeMenu: t("menu.close"), menuTitle: t("menu.title"), nav: t("nav.main") }}
       // Barra (xl+): idioma compacto + carrinho em ícone; a conta vem do `cta` (ícone com nome acessível).
       desktopActions={

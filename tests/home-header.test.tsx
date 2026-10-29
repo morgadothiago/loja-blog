@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }), usePathname: () => "/" }));
+vi.mock("@/actions/auth", () => ({ logout: vi.fn() }));
 const authMock = vi.fn();
 vi.mock("@/auth", () => ({ auth: () => authMock() }));
 vi.mock("@/lib/i18n-server", async () => {
@@ -92,6 +93,21 @@ describe("HomeHeader (sessão no servidor)", () => {
     await renderHome({ user: { id: "2", role: "CUSTOMER" } });
     expect(screen.getByRole("link", { name: "Minha conta" })).toHaveAttribute("href", "/conta");
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
+  });
+
+  it("logado: botão de usuário na barra (dropdown) e lista com Sair no menu; deslogado não tem nenhum dos dois", async () => {
+    await renderHome({ user: { id: "2", role: "CUSTOMER", name: "Elena", email: "elena@x.com" } });
+    // com o painel (modal) aberto, o resto da página fica inerte: o botão da barra só aparece com hidden: true
+    expect(screen.getByRole("button", { name: "Menu do usuário: Elena", hidden: true })).toHaveAttribute("aria-haspopup", "menu");
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("link", { name: "Meus pedidos" })).toHaveAttribute("href", "/conta/pedidos");
+    expect(within(dialog).getByRole("button", { name: "Sair" })).toBeInTheDocument();
+  });
+
+  it("deslogado: sem botão de usuário nem Sair", async () => {
+    await renderHome(null);
+    expect(screen.queryByRole("button", { name: /Menu do usuário/, hidden: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sair", hidden: true })).toBeNull();
   });
 });
 
