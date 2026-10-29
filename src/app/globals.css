@@ -43,6 +43,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -95,7 +96,9 @@
   --muted-foreground: oklch(0.45 0.03 140);
   --accent: oklch(0.86 0.06 120);
   --accent-foreground: oklch(0.24 0.03 150);
-  --destructive: oklch(0.548 0.176 33);
+  /* Vermelho do tema pedido (L 0,55 C 0,2 h 27): 4,85:1 sobre o papel e 5,07:1 com texto claro (AA). */
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.24 0.03 150 / 18%);
   --input: oklch(0.24 0.03 150 / 30%);
   --ring: oklch(0.52 0.15 40);
@@ -181,6 +184,12 @@
     @apply font-sans;
     /* Header fixo (3.625rem + borda): âncoras e foco não ficam escondidos atrás dele. */
     scroll-padding-top: 3.75rem;
+  }
+  /* Rolagem suave só para quem não pediu movimento reduzido. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
   h1, h2, h3 {
     @apply font-heading font-normal;
